@@ -53,27 +53,7 @@ struct SelectionGridView: View {
                     ScrollView {
                         LazyVGrid(columns: columns, spacing: 2) {
                             ForEach(visible, id: \.localIdentifier) { asset in
-                                let isSelected = selection.contains(asset.localIdentifier)
-                                let size = knownSizes[asset.localIdentifier]
-                                AssetThumbnail(asset: asset, size: size)
-                                    .overlay(alignment: .topTrailing) {
-                                        Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                                            .font(.title3)
-                                            .symbolRenderingMode(.palette)
-                                            .foregroundStyle(.white, Color.red)
-                                            // Тень, чтобы белый кружок был виден и на светлом кадре.
-                                            .shadow(color: .black.opacity(0.5), radius: 2)
-                                            .padding(6)
-                                    }
-                                    .contentShape(Rectangle())
-                                    .onTapGesture { toggle(asset) }
-                                    .onLongPressGesture { fullScreen.asset = asset }
-                                    .accessibilityElement(children: .ignore)
-                                    .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
-                                    .accessibilityLabel(asset.mediaType == .video ? Text("Видео \(asset.duration.formattedDuration)") : Text("Фото"))
-                                    .accessibilityValue(size.map { Text($0.formattedBytes) } ?? Text(verbatim: ""))
-                                    .accessibilityAction(named: "Открыть") { fullScreen.asset = asset }
-                                    .accessibilityIdentifier("selection.item")
+                                cell(for: asset)
                             }
                         }
                     }
@@ -119,6 +99,35 @@ struct SelectionGridView: View {
         .onChange(of: sortOrder) { _, _ in reorder() }
         .onChange(of: assets.map(\.localIdentifier)) { _, _ in reorder() }
         .task { await measureSizes() }
+    }
+
+    /// Клетка сетки. Отдельная функция с типизированными значениями: одним выражением внутри `body`
+    /// её не успевает типизировать компилятор Xcode 26, на котором собирается релиз.
+    private func cell(for asset: PHAsset) -> some View {
+        let isSelected = selection.contains(asset.localIdentifier)
+        let size = knownSizes[asset.localIdentifier]
+        let traits: AccessibilityTraits = isSelected ? [.isButton, .isSelected] : .isButton
+        let label: Text = asset.mediaType == .video ? Text("Видео \(asset.duration.formattedDuration)") : Text("Фото")
+        let value: Text = size.map { Text($0.formattedBytes) } ?? Text(verbatim: "")
+        return AssetThumbnail(asset: asset, size: size)
+            .overlay(alignment: .topTrailing) {
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .font(.title3)
+                    .symbolRenderingMode(.palette)
+                    .foregroundStyle(.white, Color.red)
+                    // Тень, чтобы белый кружок был виден и на светлом кадре.
+                    .shadow(color: .black.opacity(0.5), radius: 2)
+                    .padding(6)
+            }
+            .contentShape(Rectangle())
+            .onTapGesture { toggle(asset) }
+            .onLongPressGesture { fullScreen.asset = asset }
+            .accessibilityElement(children: .ignore)
+            .accessibilityAddTraits(traits)
+            .accessibilityLabel(label)
+            .accessibilityValue(value)
+            .accessibilityAction(named: "Открыть") { fullScreen.asset = asset }
+            .accessibilityIdentifier("selection.item")
     }
 
     private func reorder() {
