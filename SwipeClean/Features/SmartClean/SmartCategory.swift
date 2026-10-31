@@ -110,7 +110,8 @@ enum SmartCategory: String, CaseIterable, Identifiable {
         if isGroups {
             GroupsView(title: title, groups: groups(in: analyzer), analyzer: analyzer)
         } else {
-            SelectionGridView(title: title, assets: assets(in: analyzer), analyzer: analyzer)
+            // У тяжёлых видео видно, сколько весит каждое, и их можно пересортировать.
+            SelectionGridView(title: title, assets: assets(in: analyzer), analyzer: analyzer, measuresSizes: self == .heavyVideos)
         }
     }
 

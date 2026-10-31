@@ -319,6 +319,66 @@ final class SwipeCleanUITests: XCTestCase {
         assertRunning(app)
     }
 
+    /// Видео в разделе памяти: размер справа внизу на каждой клетке, сначала самые тяжёлые,
+    /// меню сортировки переворачивает порядок. Фото раздела и сжатие сортируются тем же меню.
+    func testGridsSortBySizeAndShowSize() throws {
+        let app = launch()
+        try requirePhotos(app)
+        app.tabBars.buttons["Главная"].tap()
+        element(app, "home.storage").tap()
+
+        let photos = app.buttons["storage.kind.photos"]
+        XCTAssertTrue(photos.waitForExistence(timeout: 60), "Нет раздела «Фото»")
+        let videoKinds = ["storage.kind.videos", "storage.kind.slowMotion", "storage.kind.timelapses"]
+        let videos = app.buttons.matching(NSPredicate(format: "identifier IN %@", videoKinds)).firstMatch
+        guard videos.exists else {
+            throw XCTSkip("В медиатеке нет видео: наполните медиатеку симулятора (scripts/seed-simulator.sh)")
+        }
+        scrollTo(videos, in: app)
+        videos.tap()
+
+        let items = app.buttons.matching(identifier: "selection.item")
+        XCTAssertTrue(items.firstMatch.waitForExistence(timeout: 30), "Сетка видео не открылась")
+        let first = items.firstMatch
+        XCTAssertTrue(first.label.hasPrefix("Видео"), first.label)
+        XCTAssertNotNil(bytes(first), "У видео не виден размер: \(String(describing: first.value))")
+        assertSizes(items, descending: true)
+        attachScreenshot(app, "videos-largest")
+        pickSort(app, menu: "selection.sort", "Сначала маленькие")
+        assertSizes(items, descending: false)
+        attachScreenshot(app, "videos-smallest")
+        pickSort(app, menu: "selection.sort", "Сначала новые")
+        XCTAssertTrue(items.firstMatch.exists)
+        pickSort(app, menu: "selection.sort", "Сначала большие")
+        assertSizes(items, descending: true)
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+
+        // Фото раздела: их в тестовой медиатеке больше, и порядок по размеру виден на нескольких клетках.
+        for _ in 0..<4 where !(photos.exists && photos.isHittable) {
+            app.swipeDown()
+        }
+        photos.tap()
+        XCTAssertTrue(items.firstMatch.waitForExistence(timeout: 30), "Сетка фото не открылась")
+        XCTAssertTrue(items.firstMatch.label.hasPrefix("Фото"), items.firstMatch.label)
+        assertSizes(items, descending: true)
+        pickSort(app, menu: "selection.sort", "Сначала маленькие")
+        assertSizes(items, descending: false)
+        pickSort(app, menu: "selection.sort", "Сначала большие")
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+
+        // Сжатие видео: размер на клетках и то же меню сортировки.
+        let compress = app.buttons["storage.compress"]
+        scrollTo(compress, in: app)
+        compress.tap()
+        let candidates = app.buttons.matching(identifier: "compress.item")
+        XCTAssertTrue(candidates.firstMatch.waitForExistence(timeout: 30), "В сжатии нет видео")
+        assertSizes(candidates, descending: true)
+        pickSort(app, menu: "compress.sort", "Сначала маленькие")
+        assertSizes(candidates, descending: false)
+        attachScreenshot(app, "compress-smallest")
+        assertRunning(app)
+    }
+
     /// Сжатие самого тяжёлого фото с удалением оригинала: число фото в медиатеке не меняется.
     func testCompressPhotoReplacesOriginal() throws {
         let app = launch()
@@ -747,6 +807,46 @@ final class SwipeCleanUITests: XCTestCase {
         guard let match = button.label.firstMatch(of: /Оставить (\d+), удалить (\d+)/),
               let keep = Int(match.1), let trash = Int(match.2) else { return nil }
         return (keep, trash)
+    }
+
+    /// Размер из значения клетки сетки: «12,3 МБ» → байты. Точность подписи, но для порядка её хватает.
+    private func bytes(_ element: XCUIElement) -> Double? {
+        guard let value = element.value as? String else { return nil }
+        let text = value.replacingOccurrences(of: "\u{00A0}", with: " ").replacingOccurrences(of: "\u{202F}", with: " ")
+        guard let match = text.firstMatch(of: /(\d+(?:[.,]\d+)?) ?(байт\w*|КБ|МБ|ГБ|ТБ|bytes|KB|MB|GB|TB)/),
+              let number = Double(match.1.replacingOccurrences(of: ",", with: ".")) else { return nil }
+        let scale: Double = switch match.2 {
+        case "КБ", "KB": 1e3
+        case "МБ", "MB": 1e6
+        case "ГБ", "GB": 1e9
+        case "ТБ", "TB": 1e12
+        default: 1
+        }
+        return number * scale
+    }
+
+    /// Размеры первых клеток идут по убыванию или по возрастанию. Сетка пересобирается после закрытия меню,
+    /// поэтому порядок проверяется несколько секунд, пока не совпадёт.
+    private func assertSizes(_ items: XCUIElementQuery, descending: Bool, file: StaticString = #filePath, line: UInt = #line) {
+        var sizes: [Double] = []
+        let deadline = Date().addingTimeInterval(5)
+        repeat {
+            let count = min(items.count, 6)
+            sizes = (0..<count).compactMap { bytes(items.element(boundBy: $0)) }
+            let ordered = descending ? sizes.sorted(by: >) : sizes.sorted(by: <)
+            if sizes.count == count, count > 0, sizes == ordered { return }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.3))
+        } while Date() < deadline
+        XCTFail("Размеры не по \(descending ? "убыванию" : "возрастанию"): \(sizes)", file: file, line: line)
+    }
+
+    /// Выбирает порядок в меню сортировки на панели навигации.
+    private func pickSort(_ app: XCUIApplication, menu id: String, _ title: String, file: StaticString = #filePath, line: UInt = #line) {
+        element(app, id).tap()
+        let button = app.buttons[title].firstMatch
+        let option = button.waitForExistence(timeout: 5) ? button : app.menuItems[title].firstMatch
+        XCTAssertTrue(option.waitForExistence(timeout: 3), "В меню сортировки нет «\(title)»", file: file, line: line)
+        option.tap()
     }
 
     /// Любой элемент по идентификатору: ссылки в списках бывают кнопками или ячейками.

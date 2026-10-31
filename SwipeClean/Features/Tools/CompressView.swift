@@ -35,6 +35,7 @@ struct CompressView: View {
     @Environment(FullScreenPresenter.self) private var fullScreen
     @AppStorage(SettingsKeys.compressionLevel) private var level = CompressionLevel.medium
     @AppStorage(SettingsKeys.deleteOriginalsAfterCompression) private var deleteOriginals = true
+    @AppStorage(SettingsKeys.mediaSortOrder) private var sortOrder = MediaSortOrder.largest
     @State private var kind = Kind.videos
     @State private var candidates: [Candidate] = []
     @State private var isLoading = true
@@ -88,6 +89,11 @@ struct CompressView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
+                MediaSortMenu(order: $sortOrder)
+                    .disabled(candidates.isEmpty || progress != nil)
+                    .accessibilityIdentifier("compress.sort")
+            }
+            ToolbarItem(placement: .topBarTrailing) {
                 Button(selection.count == candidates.count && !candidates.isEmpty ? "Снять все" as LocalizedStringKey : "Выбрать все") {
                     if selection.count == candidates.count {
                         selection.removeAll()
@@ -100,6 +106,7 @@ struct CompressView: View {
             }
         }
         .task(id: kind) { await load() }
+        .onChange(of: sortOrder) { _, _ in candidates = inSortOrder(candidates) }
         .onChange(of: library.changeCount) { _, _ in
             if progress == nil { Task { await load() } }
         }
@@ -155,7 +162,7 @@ struct CompressView: View {
             LazyVGrid(columns: columns, spacing: 2) {
                 ForEach(candidates) { candidate in
                     let isSelected = selection.contains(candidate.id)
-                    AssetThumbnail(asset: candidate.asset)
+                    AssetThumbnail(asset: candidate.asset, size: candidate.size)
                         .overlay(alignment: .topTrailing) {
                             Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                                 .font(.title3)
@@ -164,21 +171,13 @@ struct CompressView: View {
                                 .shadow(color: .black.opacity(0.5), radius: 2)
                                 .padding(6)
                         }
-                        .overlay(alignment: .bottomTrailing) {
-                            Text(candidate.size.formattedBytes)
-                                .font(.caption2.weight(.semibold).monospacedDigit())
-                                .foregroundStyle(.white)
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
-                                .background(.black.opacity(0.45), in: Capsule())
-                                .padding(4)
-                        }
                         .contentShape(Rectangle())
                         .onTapGesture { toggle(candidate.id) }
                         .onLongPressGesture { fullScreen.asset = candidate.asset }
                         .accessibilityElement(children: .ignore)
                         .accessibilityAddTraits(.isButton)
                         .accessibilityLabel(isSelected ? "Выбрано" : "Не выбрано")
+                        .accessibilityValue(candidate.size.formattedBytes)
                         .accessibilityIdentifier("compress.item")
                 }
             }
@@ -272,12 +271,17 @@ struct CompressView: View {
         let kind = kind
         let loaded = await Task.detached(priority: .userInitiated) { Self.fetchCandidates(kind) }.value
         guard !Task.isCancelled else { return }
-        candidates = loaded
+        candidates = inSortOrder(loaded)
         selection.formIntersection(Set(loaded.map(\.id)))
         isLoading = false
     }
 
-    /// Самые тяжёлые сверху: с них экономия больше всего.
+    /// По умолчанию самые тяжёлые сверху: с них экономия больше всего.
+    private func inSortOrder(_ list: [Candidate]) -> [Candidate] {
+        sortOrder.sorted(list) { MediaSortOrder.Key(id: $0.id, size: $0.size, date: $0.asset.creationDate) }
+    }
+
+    /// Фото берутся самые тяжёлые: с них экономия больше всего.
     private nonisolated static func fetchCandidates(_ kind: Kind) -> [Candidate] {
         let options = PHFetchOptions()
         options.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]

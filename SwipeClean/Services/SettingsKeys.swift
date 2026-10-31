@@ -10,6 +10,7 @@ enum SettingsKeys {
     static let smartCleanPeriod = "smartCleanPeriod"
     static let compressionLevel = "compressionLevel"
     static let deleteOriginalsAfterCompression = "deleteOriginalsAfterCompression"
+    static let mediaSortOrder = "mediaSortOrder"
     static let vaultBiometrics = "vaultBiometrics"
     static let vaultFailedAttempts = "vaultFailedAttempts"
     static let vaultLockedUntil = "vaultLockedUntil"

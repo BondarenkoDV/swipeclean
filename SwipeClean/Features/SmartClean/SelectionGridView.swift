@@ -1,23 +1,38 @@
 import Photos
 import SwiftUI
 
-/// Сетка с выбором для размытых фото, старых скриншотов и разделов памяти iPhone.
+/// Сетка с выбором для размытых фото, старых скриншотов, тяжёлых видео и разделов памяти iPhone.
+/// Если известны размеры файлов, они видны справа внизу на каждой клетке, а сетку можно сортировать.
 struct SelectionGridView: View {
     let title: LocalizedStringKey
     let assets: [PHAsset]
     let analyzer: SmartCleanAnalyzer
     /// Размеры файлов: если заданы, видны на каждой клетке.
     var sizes: [String: Int64] = [:]
+    /// Посчитать размеры самой, если их не передали (тяжёлые видео умной чистки).
+    var measuresSizes = false
 
     @Environment(ReviewStore.self) private var store
     @Environment(FullScreenPresenter.self) private var fullScreen
+    @AppStorage(SettingsKeys.mediaSortOrder) private var sortOrder = MediaSortOrder.largest
     @State private var selection: Set<String> = []
     @State private var handled: Set<String> = []
+    @State private var measuredSizes: [String: Int64] = [:]
+    /// Ассеты в выбранном порядке. Сортируются при смене порядка, а не на каждое нажатие по клетке.
+    @State private var ordered: [PHAsset]?
 
     private let columns = [GridItem(.adaptive(minimum: 100), spacing: 2)]
 
+    private var knownSizes: [String: Int64] {
+        sizes.isEmpty ? measuredSizes : sizes
+    }
+
+    private var isSortable: Bool {
+        !sizes.isEmpty || measuresSizes
+    }
+
     private var visible: [PHAsset] {
-        assets.filter { !handled.contains($0.localIdentifier) }
+        (ordered ?? assets).filter { !handled.contains($0.localIdentifier) }
     }
 
     /// Выбранные среди видимых: фото, удалённые снаружи после анализа, из выбора выпадают.
@@ -39,7 +54,8 @@ struct SelectionGridView: View {
                         LazyVGrid(columns: columns, spacing: 2) {
                             ForEach(visible, id: \.localIdentifier) { asset in
                                 let isSelected = selection.contains(asset.localIdentifier)
-                                AssetThumbnail(asset: asset)
+                                let size = knownSizes[asset.localIdentifier]
+                                AssetThumbnail(asset: asset, size: size)
                                     .overlay(alignment: .topTrailing) {
                                         Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                                             .font(.title3)
@@ -49,20 +65,15 @@ struct SelectionGridView: View {
                                             .shadow(color: .black.opacity(0.5), radius: 2)
                                             .padding(6)
                                     }
-                                    .overlay(alignment: .bottomLeading) {
-                                        if let size = sizes[asset.localIdentifier] {
-                                            Text(size.formattedBytes)
-                                                .font(.caption2.weight(.semibold).monospacedDigit())
-                                                .foregroundStyle(.white)
-                                                .padding(.horizontal, 6)
-                                                .padding(.vertical, 2)
-                                                .background(.black.opacity(0.55), in: Capsule())
-                                                .padding(5)
-                                        }
-                                    }
                                     .contentShape(Rectangle())
                                     .onTapGesture { toggle(asset) }
                                     .onLongPressGesture { fullScreen.asset = asset }
+                                    .accessibilityElement(children: .ignore)
+                                    .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
+                                    .accessibilityLabel(asset.mediaType == .video ? Text("Видео \(asset.duration.formattedDuration)") : Text("Фото"))
+                                    .accessibilityValue(size.map { Text($0.formattedBytes) } ?? Text(verbatim: ""))
+                                    .accessibilityAction(named: "Открыть") { fullScreen.asset = asset }
+                                    .accessibilityIdentifier("selection.item")
                             }
                         }
                     }
@@ -85,6 +96,13 @@ struct SelectionGridView: View {
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            if isSortable {
+                ToolbarItem(placement: .topBarTrailing) {
+                    MediaSortMenu(order: $sortOrder)
+                        .disabled(visible.isEmpty)
+                        .accessibilityIdentifier("selection.sort")
+                }
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 Button(isAllSelected ? "Снять все" as LocalizedStringKey : "Выбрать все") {
                     if isAllSelected {
@@ -97,6 +115,35 @@ struct SelectionGridView: View {
                 .accessibilityIdentifier("selection.toggleAll")
             }
         }
+        .onAppear(perform: reorder)
+        .onChange(of: sortOrder) { _, _ in reorder() }
+        .onChange(of: assets.map(\.localIdentifier)) { _, _ in reorder() }
+        .task { await measureSizes() }
+    }
+
+    private func reorder() {
+        guard isSortable else {
+            ordered = nil
+            return
+        }
+        let sizes = knownSizes
+        ordered = sortOrder.sorted(assets) { asset in
+            MediaSortOrder.Key(id: asset.localIdentifier, size: sizes[asset.localIdentifier] ?? 0, date: asset.creationDate)
+        }
+    }
+
+    /// Размеры берутся из кэша, первый раз считаются вне главного потока.
+    private func measureSizes() async {
+        guard measuresSizes, sizes.isEmpty, measuredSizes.isEmpty, !assets.isEmpty else { return }
+        let assets = assets
+        let measured = await Task.detached(priority: .userInitiated) {
+            let sizes = Dictionary(assets.map { ($0.localIdentifier, $0.cachedTotalSize) }, uniquingKeysWith: { first, _ in first })
+            FileSizeCache.shared.save()
+            return sizes
+        }.value
+        guard !Task.isCancelled else { return }
+        measuredSizes = measured
+        reorder()
     }
 
     private func toggle(_ asset: PHAsset) {

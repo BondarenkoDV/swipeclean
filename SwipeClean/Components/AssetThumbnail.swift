@@ -1,10 +1,11 @@
 import Photos
 import SwiftUI
 
-/// Квадратное превью ассета для сеток.
+/// Квадратное превью ассета для сеток: у видео длительность слева внизу, размер файла, если он известен, — справа внизу.
 struct AssetThumbnail: View {
     let asset: PHAsset
     var side: CGFloat = 120
+    var size: Int64?
 
     @Environment(\.displayScale) private var displayScale
     @State private var image: UIImage?
@@ -27,6 +28,18 @@ struct AssetThumbnail: View {
                         .foregroundStyle(.white)
                         .padding(4)
                         .shadow(radius: 2)
+                }
+            }
+            .overlay(alignment: .bottomTrailing) {
+                if let size, size > 0 {
+                    Text(size.formattedBytes)
+                        .font(.caption2.weight(.semibold).monospacedDigit())
+                        .foregroundStyle(.white)
+                        .lineLimit(1)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(.black.opacity(0.55), in: Capsule())
+                        .padding(4)
                 }
             }
             .clipped()

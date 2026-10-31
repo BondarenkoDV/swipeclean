@@ -883,6 +883,16 @@
         }
       }
     },
+    "Видео %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Video %@"
+          }
+        }
+      }
+    },
     "Видео нет": {
       "localizations": {
         "en": {
@@ -2373,6 +2383,16 @@
         }
       }
     },
+    "Открыть": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open"
+          }
+        }
+      }
+    },
     "Открыть Настройки": {
       "localizations": {
         "en": {
@@ -3645,6 +3665,46 @@
         }
       }
     },
+    "Сначала большие": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Largest first"
+          }
+        }
+      }
+    },
+    "Сначала маленькие": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Smallest first"
+          }
+        }
+      }
+    },
+    "Сначала новые": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Newest first"
+          }
+        }
+      }
+    },
+    "Сначала старые": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Oldest first"
+          }
+        }
+      }
+    },
     "Снять все": {
       "localizations": {
         "en": {
@@ -3701,6 +3761,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Create App-Specific Password"
+          }
+        }
+      }
+    },
+    "Сортировка": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sort"
           }
         }
       }
