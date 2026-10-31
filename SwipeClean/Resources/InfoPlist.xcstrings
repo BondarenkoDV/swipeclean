@@ -1,0 +1,96 @@
+{
+  "sourceLanguage": "ru",
+  "strings": {
+    "CFBundleDisplayName": {
+      "comment": "Bundle display name",
+      "extractionState": "extracted_with_value",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SwipeClean"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "new",
+            "value": "SwipeClean"
+          }
+        }
+      }
+    },
+    "NSCalendarsFullAccessUsageDescription": {
+      "comment": "Privacy - Calendars Full Access Usage Description",
+      "extractionState": "extracted_with_value",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Calendar access lets the app find and delete old events."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Нужен доступ к календарю, чтобы найти и удалить старые события."
+          }
+        }
+      }
+    },
+    "NSContactsUsageDescription": {
+      "comment": "Privacy - Contacts Usage Description",
+      "extractionState": "extracted_with_value",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Contacts access lets the app find duplicates and contacts without a number."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Нужен доступ к контактам, чтобы найти дубли и контакты без номера."
+          }
+        }
+      }
+    },
+    "NSFaceIDUsageDescription": {
+      "comment": "Privacy - Face ID Usage Description",
+      "extractionState": "extracted_with_value",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Face ID opens the secret folder without a passcode."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Face ID открывает секретную папку без PIN-кода."
+          }
+        }
+      }
+    },
+    "NSPhotoLibraryUsageDescription": {
+      "comment": "Privacy - Photo Library Usage Description",
+      "extractionState": "extracted_with_value",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Photo access lets you go through your gallery and delete what you don't need."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Нужен доступ к фото, чтобы вы могли разобрать галерею и удалить ненужное."
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}

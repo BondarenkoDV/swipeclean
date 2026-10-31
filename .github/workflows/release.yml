@@ -1,0 +1,43 @@
+# Собирает неподписанный SwipeClean.ipa и выкладывает его в Releases.
+# Запуск: тег vX.Y.Z или вручную (Actions → Release → Run workflow).
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Тег релиза, например v0.1.0"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  ipa:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Самый новый Xcode
+        run: |
+          xcode=$(ls -d /Applications/Xcode_2*.app | sort -V | tail -1)
+          sudo xcode-select -s "$xcode"
+          xcodebuild -version
+
+      - name: XcodeGen
+        run: brew install xcodegen
+
+      - name: Сборка .ipa
+        run: scripts/build-ipa.sh
+
+      - name: Релиз
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          gh release create "$TAG" build/ipa/SwipeClean.ipa \
+            --target "$GITHUB_SHA" \
+            --title "SwipeClean $TAG" \
+            --notes "Как установить на iPhone: https://github.com/$GITHUB_REPOSITORY#установка-на-iphone"

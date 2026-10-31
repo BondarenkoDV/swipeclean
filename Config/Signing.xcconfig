@@ -1,0 +1,14 @@
+// Подпись и идентификатор приложения.
+//
+// Свои значения положите в Config/Local.xcconfig рядом с этим файлом. Его нет в git:
+//
+//   DEVELOPMENT_TEAM = ABCDE12345
+//   APP_BUNDLE_ID = com.yourname.swipeclean
+//
+// Без Local.xcconfig команду можно выбрать в Xcode → Signing & Capabilities,
+// а Bundle Identifier поменять там же: идентификатор должен быть свободен в Apple.
+
+DEVELOPMENT_TEAM =
+APP_BUNDLE_ID = app.swipeclean.ios
+
+#include? "Local.xcconfig"
