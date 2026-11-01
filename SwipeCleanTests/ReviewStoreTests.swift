@@ -112,4 +112,38 @@ final class ReviewStoreTests: XCTestCase {
         XCTAssertEqual(store.today().reviewed, 1)
         XCTAssertEqual(store.count(of: .keep), 1)
     }
+
+    func testActivityTodayFollowsRecordAndUndo() throws {
+        let store = try makeStore()
+        XCTAssertFalse(store.isActiveToday)
+        store.record([decision("a", .keep)])
+        XCTAssertTrue(store.isActiveToday)
+        store.undo(id: "a")
+        XCTAssertFalse(store.isActiveToday, "Отменённый единственный свайп не должен засчитывать день")
+    }
+
+    /// День, когда только удаляли из корзины, тоже идёт в серию.
+    func testDeletionOnlyDayIsActive() throws {
+        let store = try makeStore()
+        let stat = store.today()
+        XCTAssertFalse(stat.isActive)
+        stat.trashed = 2
+        store.save()
+        store.refreshActivity()
+        XCTAssertTrue(store.isActiveToday)
+    }
+
+    func testStreakContinuesFromYesterday() throws {
+        let store = try makeStore()
+        store.seedStreak(days: 3)
+        XCTAssertFalse(store.isActiveToday)
+        XCTAssertEqual(store.streak().current, 3, "Серия держится до конца дня, даже если сегодня ещё не чистили")
+        store.record([decision("a", .trash)])
+        XCTAssertTrue(store.isActiveToday)
+        XCTAssertEqual(store.streak().current, 4)
+        XCTAssertEqual(store.activeDays().count, 4)
+        store.resetProgress()
+        XCTAssertFalse(store.isActiveToday)
+        XCTAssertEqual(store.streak().current, 0)
+    }
 }

@@ -133,6 +133,8 @@ struct PeekView: View {
 struct FullScreenAssetView: View {
     let asset: PHAsset
     @Environment(\.dismiss) private var dismiss
+    @Environment(ProtectedStore.self) private var protection
+    @Environment(ReviewStore.self) private var store
     @State private var image: UIImage?
     @State private var player: AVPlayer?
     @State private var loadFailed = false
@@ -190,8 +192,54 @@ struct FullScreenAssetView: View {
             .accessibilityLabel("Закрыть")
             .accessibilityIdentifier("fullscreen.close")
         }
+        .overlay(alignment: .topLeading) {
+            protectButton
+                .padding()
+        }
         .task { await load() }
         .onDisappear { player?.pause() }
+    }
+
+    /// «Не трогать»: защищённое фото приложение больше не предлагает удалить нигде. Если фото открыто из стопки
+    /// или сетки, после защиты оно оттуда пропадает, а из корзины приложения возвращается.
+    @ViewBuilder
+    private var protectButton: some View {
+        let id = asset.localIdentifier
+        let isListed = protection.contains(id)
+        if !isListed, protection.protectsFavorites, asset.isFavorite {
+            // Избранное и так защищено: снять защиту можно только выключив её для всего избранного.
+            Label("Избранное не трогаю", systemImage: "lock.shield.fill")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(Tone.green.gradient, in: Capsule())
+                .accessibilityElement(children: .combine)
+                .accessibilityIdentifier("fullscreen.protectedFavorite")
+        } else {
+            Button {
+                if isListed {
+                    protection.remove([id])
+                } else {
+                    protection.protect([id], store: store)
+                }
+            } label: {
+                Label(isListed ? "Не трогаю" : "Не трогать", systemImage: isListed ? "lock.shield.fill" : "lock.shield")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background {
+                        Capsule().fill(isListed ? AnyShapeStyle(Tone.green.gradient) : AnyShapeStyle(.white.opacity(0.22)))
+                    }
+                    .contentTransition(.symbolEffect(.replace))
+            }
+            .buttonStyle(.plain)
+            .sensoryFeedback(.success, trigger: isListed) { _, listed in listed }
+            .accessibilityValue(isListed ? "Защищено" : "Не защищено")
+            .accessibilityHint("Защищённое фото не попадёт в разбор, умную чистку и сжатие")
+            .accessibilityIdentifier("fullscreen.protect")
+        }
     }
 
     private func zoom(in size: CGSize) -> some Gesture {

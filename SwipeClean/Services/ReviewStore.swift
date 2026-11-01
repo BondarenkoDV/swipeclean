@@ -27,6 +27,8 @@ final class ReviewStore {
     private let context: ModelContext
     private(set) var reviewedIDs: Set<String> = []
     private(set) var trashCount = 0
+    /// Сегодня уже чистили: от этого зависят серия и сегодняшнее напоминание.
+    private(set) var isActiveToday = false
 
     init(context: ModelContext) {
         self.context = context
@@ -38,6 +40,26 @@ final class ReviewStore {
         // «Позже» не считается разобранным: такие фото снова попадут в подборки.
         reviewedIDs = Set(all.filter { $0.decision != .later }.map(\.localIdentifier))
         trashCount = all.filter { $0.decision == .trash }.count
+        refreshActivity()
+    }
+
+    /// Пересчитывает, чистили ли сегодня. Вызывается после изменений и при возврате в приложение: день мог смениться.
+    func refreshActivity() {
+        let day = Calendar.current.startOfDay(for: .now)
+        var descriptor = FetchDescriptor<DailyStat>(predicate: #Predicate { $0.day == day })
+        descriptor.fetchLimit = 1
+        let active = (try? context.fetch(descriptor).first)?.isActive ?? false
+        if active != isActiveToday { isActiveToday = active }
+    }
+
+    /// Дни, засчитанные в серию.
+    func activeDays() -> Set<Date> {
+        let descriptor = FetchDescriptor<DailyStat>(predicate: #Predicate { $0.reviewed > 0 || $0.trashed > 0 })
+        return Set(((try? context.fetch(descriptor)) ?? []).map(\.day))
+    }
+
+    func streak(today: Date = .now) -> StatsCalculator.Streak {
+        StatsCalculator.streak(activeDays: activeDays(), today: today)
     }
 
     func record(_ asset: PHAsset, decision: SwipeDecision) {
@@ -81,6 +103,7 @@ final class ReviewStore {
         reviewedIDs = reviewed
         trashCount = trash
         save()
+        refreshActivity()
     }
 
     func undo(_ asset: PHAsset, restoring previous: SwipeDecision? = nil) {
@@ -95,6 +118,7 @@ final class ReviewStore {
             reviewedIDs.remove(id)
             stat.reviewed = max(0, stat.reviewed - 1)
             save()
+            refreshActivity()
             return
         }
         if existing.decision == .trash { trashCount -= 1 }
@@ -116,6 +140,7 @@ final class ReviewStore {
             stat.reviewed = max(0, stat.reviewed - 1)
         }
         save()
+        refreshActivity()
     }
 
     func laterIDs() -> [String] {
@@ -197,6 +222,23 @@ final class ReviewStore {
         reviewedIDs.contains(asset.localIdentifier)
     }
 
+    /// Переносит решения со старых фото на их замену (Live Photo стало обычным фото): оставленное
+    /// не всплывает в разборе заново, а отложенное и отправленное в корзину остаётся там же.
+    /// `sizes` — размеры новых фото по их идентификаторам, чтобы корзина считала освобождаемое верно.
+    func transfer(_ ids: [String: String], sizes: [String: Int64] = [:]) {
+        guard !ids.isEmpty else { return }
+        let old = Array(ids.keys)
+        let descriptor = FetchDescriptor<ReviewedAsset>(predicate: #Predicate { old.contains($0.localIdentifier) })
+        guard let items = try? context.fetch(descriptor), !items.isEmpty else { return }
+        for item in items {
+            guard let new = ids[item.localIdentifier] else { continue }
+            item.localIdentifier = new
+            if let size = sizes[new] { item.fileSize = size }
+        }
+        save()
+        reload()
+    }
+
     /// Объекты удаляются по одному, а не пакетно через `delete(model:)`: пакетное удаление идёт мимо контекста,
     /// и открытые экраны (статистика с @Query) держали бы уже удалённые записи, обращение к которым роняет SwiftData.
     func resetProgress() {
@@ -229,4 +271,20 @@ final class ReviewStore {
     func save() {
         try? context.save()
     }
+
+    #if DEBUG
+    /// Для UI-тестов: серия из `days` прошлых дней, а сегодня ещё не чистили.
+    func seedStreak(days: Int) {
+        let calendar = Calendar.current
+        let start = calendar.startOfDay(for: .now)
+        for offset in 1...max(days, 1) {
+            guard let day = calendar.date(byAdding: .day, value: -offset, to: start) else { continue }
+            let stat = DailyStat(day: calendar.startOfDay(for: day))
+            stat.reviewed = 5
+            context.insert(stat)
+        }
+        save()
+        refreshActivity()
+    }
+    #endif
 }

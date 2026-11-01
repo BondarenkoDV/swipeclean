@@ -286,8 +286,11 @@ struct CompressView: View {
         let options = PHFetchOptions()
         options.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
         let result = PHAsset.fetchAssets(with: kind == .videos ? .video : .image, options: options)
+        // Защищённые фото не сжимаются: сжатие заменяет оригинал копией.
+        let protection = ProtectionPolicy.current
         var list: [Candidate] = []
         result.enumerateObjects { asset, _, _ in
+            guard !protection.protects(asset) else { return }
             if kind == .photos {
                 guard !asset.mediaSubtypes.contains(.photoLive) else { return }
             }

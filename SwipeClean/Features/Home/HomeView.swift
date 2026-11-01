@@ -9,10 +9,12 @@ enum HomeRoute: Hashable {
     case contacts
     case calendar
     case mail
+    case livePhotos
     case storage
+    case protected
 }
 
-/// Главная: память iPhone, умная чистка одной кнопкой, свайп-разбор и инструменты.
+/// Главная: память iPhone, умная чистка одной кнопкой, свайп-разбор, серия дней и инструменты.
 struct HomeView: View {
     @Environment(PhotoLibraryService.self) private var library
     @Environment(SmartCleanAnalyzer.self) private var analyzer
@@ -36,6 +38,7 @@ struct HomeView: View {
                     storageCard
                     smartCleanCard
                     swipeCard
+                    StreakCard()
                     toolsGrid
                 }
                 .padding(16)
@@ -50,7 +53,9 @@ struct HomeView: View {
                 case .contacts: ContactsCleanView()
                 case .calendar: CalendarCleanView()
                 case .mail: MailCleanView()
+                case .livePhotos: LivePhotosView()
                 case .storage: StorageView(device: storage, media: media.breakdown)
+                case .protected: ProtectedView()
                 }
             }
             .refreshable { await refresh() }
@@ -248,7 +253,7 @@ struct HomeView: View {
 
     private var smartCleanSubtitle: LocalizedStringKey {
         switch analyzer.state {
-        case .idle: "Почта iCloud, точные копии, похожие, размытые и скриншоты"
+        case .idle: "Почта, точные копии, похожие, размытые и скриншоты"
         case .scanning: "Ищу лишнее…"
         case .finished:
             foundExtras + foundMail == 0 ? "Лишнего не нашлось" : "Найдено лишнего: \(foundExtras + foundMail)"
@@ -409,10 +414,18 @@ struct HomeView: View {
                     path.append(.calendar)
                 }
                 .accessibilityIdentifier("home.calendar")
-                ToolTile(title: "Почта iCloud", subtitle: "Спам и рассылки", symbol: "envelope.badge.fill", tone: .blue) {
+                ToolTile(title: "Почта", subtitle: "iCloud и Gmail", symbol: "envelope.badge.fill", tone: .blue) {
                     path.append(.mail)
                 }
                 .accessibilityIdentifier("home.mail")
+                ToolTile(title: "Live Photos", subtitle: "Убрать видео, оставить фото", symbol: "livephoto", tone: .yellow) {
+                    path.append(.livePhotos)
+                }
+                .accessibilityIdentifier("home.livePhotos")
+                ToolTile(title: "Не трогать", subtitle: "Защищённые фото", symbol: "lock.shield.fill", tone: .teal) {
+                    path.append(.protected)
+                }
+                .accessibilityIdentifier("home.protected")
             }
         }
     }

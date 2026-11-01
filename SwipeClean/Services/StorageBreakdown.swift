@@ -104,9 +104,8 @@ enum MediaKind: String, CaseIterable, Identifiable, Sendable {
         return options
     }
 
-    /// Фото и видео раздела, самые тяжёлые первыми. Скрытые не показываются: в Фото они закрыты Face ID.
+    /// Фото и видео раздела, самые тяжёлые первыми.
     static func assets(of kind: MediaKind) -> [(asset: PHAsset, size: Int64)] {
-        guard kind != .hidden else { return [] }
         var result: [(asset: PHAsset, size: Int64)] = []
         PHAsset.fetchAssets(with: fetchOptions()).enumerateObjects { asset, _, _ in
             if MediaKind(asset) == kind {
@@ -115,6 +114,80 @@ enum MediaKind: String, CaseIterable, Identifiable, Sendable {
         }
         FileSizeCache.shared.save()
         return result.sorted { $0.size > $1.size }
+    }
+}
+
+/// Группа по размеру файла внутри раздела памяти. Пороги у видео и у фото свои:
+/// видео весят сотни мегабайт, фото — единицы.
+struct SizeBucket: Hashable, Identifiable, Sendable {
+    /// Нижняя граница, включительно.
+    let lower: Int64
+    /// Верхняя граница, не включительно. У самой тяжёлой группы её нет.
+    let upper: Int64?
+
+    var id: Int64 { lower }
+
+    func contains(_ size: Int64) -> Bool {
+        size >= lower && upper.map { size < $0 } ?? true
+    }
+
+    var title: String {
+        switch (lower, upper) {
+        case let (lower, nil): String(localized: "От \(lower.formattedBytes)")
+        case let (0, upper?): String(localized: "Меньше \(upper.formattedBytes)")
+        case let (lower, upper?): String(localized: "\(lower.formattedBytes) – \(upper.formattedBytes)")
+        }
+    }
+
+    /// Группы от самых тяжёлых к самым лёгким. Вместе они покрывают любой размер, без пересечений.
+    static func buckets(isVideo: Bool) -> [SizeBucket] {
+        let bounds: [Int64] = isVideo ? [1_000_000_000, 500_000_000, 100_000_000, 0] : [20_000_000, 5_000_000, 2_000_000, 0]
+        var buckets: [SizeBucket] = []
+        var upper: Int64?
+        for lower in bounds {
+            buckets.append(SizeBucket(lower: lower, upper: upper))
+            upper = lower
+        }
+        return buckets
+    }
+}
+
+/// Сводка раздела для экрана подробностей: сколько весит каждая группа по размеру и самые большие файлы.
+struct MediaKindSummary: Equatable, Sendable {
+    struct Group: Equatable, Identifiable, Sendable {
+        let bucket: SizeBucket
+        var count = 0
+        var bytes: Int64 = 0
+
+        var id: Int64 { bucket.id }
+    }
+
+    /// Сколько самых больших файлов считается в подсказке «10 самых больших занимают…».
+    static let topCount = 10
+
+    /// Все группы, от тяжёлых к лёгким, в том числе пустые.
+    private(set) var groups: [Group]
+    private(set) var count = 0
+    private(set) var bytes: Int64 = 0
+    /// Сколько весят `topCount` самых больших файлов.
+    private(set) var topBytes: Int64 = 0
+
+    init(sizes: [Int64], isVideo: Bool) {
+        groups = SizeBucket.buckets(isVideo: isVideo).map { Group(bucket: $0) }
+        for size in sizes {
+            count += 1
+            bytes += size
+            if let index = groups.firstIndex(where: { $0.bucket.contains(size) }) {
+                groups[index].count += 1
+                groups[index].bytes += size
+            }
+        }
+        topBytes = sizes.sorted(by: >).prefix(Self.topCount).reduce(0, +)
+    }
+
+    /// Непустые группы: только их есть смысл показывать.
+    var filledGroups: [Group] {
+        groups.filter { $0.count > 0 }
     }
 }
 

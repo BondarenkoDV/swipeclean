@@ -16,17 +16,21 @@ enum ImageMetrics {
     static func featurePrint(_ image: CGImage) -> VNFeaturePrintObservation? {
         let request = VNGenerateImageFeaturePrintRequest()
         request.revision = featurePrintRevision
+        preferCPUOnSimulator(request)
+        let handler = VNImageRequestHandler(cgImage: image, options: [:])
+        try? handler.perform([request])
+        return request.results?.first
+    }
+
+    /// В симуляторе Vision по умолчанию не создаёт контекст нейросети («Failed to create espresso context»):
+    /// отпечатков и оценок лиц нет, и «Похожие» всегда пустые. На процессоре всё считается. На устройстве путь прежний.
+    static func preferCPUOnSimulator(_ request: VNRequest) {
         #if targetEnvironment(simulator)
-        // В симуляторе Vision по умолчанию не создаёт контекст нейросети («Failed to create espresso context»),
-        // отпечатков нет и «Похожие» всегда пустые. На процессоре отпечатки считаются. На устройстве путь прежний.
         let devices = (try? request.supportedComputeStageDevices[.main]) ?? []
         if let cpu = devices.first(where: { if case .cpu = $0 { true } else { false } }) {
             request.setComputeDevice(cpu, for: .main)
         }
         #endif
-        let handler = VNImageRequestHandler(cgImage: image, options: [:])
-        try? handler.perform([request])
-        return request.results?.first
     }
 
     /// Расстояние между отпечатками; `nil`, если их нельзя сравнить (например, разные ревизии из старого кэша).

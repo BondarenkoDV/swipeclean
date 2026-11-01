@@ -17,7 +17,7 @@ struct StatsView: View {
     private var favoriteCount: Int { store.count(of: .favorite) }
 
     private var streak: StatsCalculator.Streak {
-        StatsCalculator.streak(activeDays: Set(days.filter { $0.reviewed > 0 }.map(\.day)))
+        StatsCalculator.streak(activeDays: Set(days.filter(\.isActive).map(\.day)))
     }
 
     private var weekly: [StatsCalculator.WeekPoint] {
@@ -34,8 +34,8 @@ struct StatsView: View {
                         StatTile(title: "Удалено", value: "\(deletedCount)", symbol: "trash.fill", tone: .red)
                         StatTile(title: "Оставлено", value: "\(keptCount)", symbol: "checkmark", tone: .green)
                         StatTile(title: "В избранное", value: "\(favoriteCount)", symbol: "heart.fill", tone: .pink)
-                        StatTile(title: "Стрик", value: String(localized: "\(streak.current) дн."), symbol: "flame.fill", tone: .orange)
-                        StatTile(title: "Лучший стрик", value: String(localized: "\(streak.best) дн."), symbol: "trophy.fill", tone: .yellow)
+                        StatTile(title: "Стрик", value: StatsCalculator.daysText(streak.current), symbol: "flame.fill", tone: .orange)
+                        StatTile(title: "Лучший стрик", value: StatsCalculator.daysText(streak.best), symbol: "trophy.fill", tone: .yellow)
                     }
                     weeklyChart
                     yearsSection

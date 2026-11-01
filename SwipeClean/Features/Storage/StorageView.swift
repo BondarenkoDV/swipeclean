@@ -5,7 +5,7 @@ import UIKit
 
 /// Память iPhone подробно: из чего складывается занятое место и куда идти, чтобы его освободить.
 /// iOS не показывает приложениям размеры других программ, поэтому точно измеряются медиатека по разделам,
-/// сам SwipeClean и почта iCloud, а всё остальное честно показано одной строкой «Приложения и система».
+/// сам SwipeClean и почта iCloud и Gmail, а всё остальное честно показано одной строкой «Приложения и система».
 struct StorageView: View {
     @Environment(PhotoLibraryService.self) private var library
     @Environment(ReviewStore.self) private var store
@@ -53,12 +53,32 @@ struct StorageView: View {
 
     // MARK: - Диаграмма
 
-    /// Круговая диаграмма всей памяти и легенда. Нажатие на долю или строку легенды показывает её размер в центре.
+    /// Круговая диаграмма всей памяти и легенда. Нажатие на долю или строку легенды показывает её размер в центре,
+    /// а у раздела медиатеки под легендой появляется переход к его файлам.
     private var overviewCard: some View {
         VStack(spacing: 16) {
             if let device {
-                donut(device)
+                let slices = slices
+                // Пустую диаграмму Swift Charts не рисует: при анимированном появлении долей из пустоты
+                // он делит на нулевую сумму и падает на NaN. Пока медиатека считается — только индикатор.
+                if slices.isEmpty {
+                    VStack(spacing: 10) {
+                        ProgressView()
+                        Text("Занято \(device.used.formattedBytes) из \(device.total.formattedBytes)")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 260)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(Text("Занято \(device.used.formattedBytes) из \(device.total.formattedBytes)"))
+                    .accessibilityIdentifier("storage.overview")
+                } else {
+                    donut(device, slices: slices)
+                }
                 legend(device)
+                if let kind = selectedSlice.flatMap(MediaKind.init(rawValue:)) {
+                    openKindLink(kind)
+                }
             } else {
                 Text("Не удалось узнать размер памяти")
                     .foregroundStyle(.secondary)
@@ -83,9 +103,8 @@ struct StorageView: View {
         return slices.filter { $0.bytes > 0 }
     }
 
-    private func donut(_ device: DeviceStorage) -> some View {
-        let slices = slices
-        return Chart(slices) { slice in
+    private func donut(_ device: DeviceStorage, slices: [StorageSlice]) -> some View {
+        Chart(slices) { slice in
             SectorMark(
                 angle: .value("Размер", Double(slice.bytes)),
                 innerRadius: .ratio(0.66),
@@ -120,7 +139,9 @@ struct StorageView: View {
             }
         }
         .frame(height: 260)
-        .animation(.smooth, value: selectedSlice)
+        // Новые размеры приходят в withAnimation, а анимация долей в Swift Charts падает на NaN
+        // («Double value cannot be converted to Int»): диаграмма всегда меняется без анимации.
+        .transaction { $0.animation = nil }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text("Занято \(device.used.formattedBytes) из \(device.total.formattedBytes)"))
         .accessibilityIdentifier("storage.overview")
@@ -239,6 +260,34 @@ struct StorageView: View {
         }
     }
 
+    /// Под легендой, когда выбран раздел медиатеки: переход к его файлам.
+    private func openKindLink(_ kind: MediaKind) -> some View {
+        NavigationLink {
+            MediaKindView(kind: kind)
+        } label: {
+            HStack(spacing: 10) {
+                ToneIcon(symbol: kind.symbol, tone: kind.tone, size: 32)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(kind.title)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.primary)
+                    Text("Файлы по размеру: посмотреть и удалить")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(10)
+            .background(kind.tone.color.opacity(0.12), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("storage.open")
+    }
+
     // MARK: - Корзина
 
     private var trashCard: some View {
@@ -301,7 +350,6 @@ struct StorageView: View {
         .accessibilityIdentifier("storage.media")
     }
 
-    @ViewBuilder
     private func mediaRow(_ kind: MediaKind, usage: MediaBreakdown.Usage, total: Int64, largest: Int64) -> some View {
         let row = UsageRow(
             symbol: kind.symbol,
@@ -310,33 +358,16 @@ struct StorageView: View {
             subtitle: kind.isVideo ? "\(usage.count) видео" as LocalizedStringKey : "\(usage.count) фото",
             bytes: usage.bytes,
             share: total > 0 ? Double(usage.bytes) / Double(total) : 0,
-            bar: largest > 0 ? Double(usage.bytes) / Double(largest) : 0,
-            hasChevron: kind != .hidden
+            bar: largest > 0 ? Double(usage.bytes) / Double(largest) : 0
         )
-        switch kind {
-        case .hidden:
-            // Скрытые в Фото закрыты Face ID: здесь только их размер, без просмотра.
+        // Каждый раздел открывается целиком: группы по размеру и сами файлы, самые тяжёлые первыми.
+        return NavigationLink {
+            MediaKindView(kind: kind)
+        } label: {
             row
-                .accessibilityElement(children: .combine)
-                .accessibilityIdentifier("storage.kind.\(kind.rawValue)")
-        case .bursts:
-            // Серии разбираются умной чисткой: она оставляет лучший кадр каждой серии.
-            NavigationLink {
-                SmartCleanView()
-            } label: {
-                row
-            }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("storage.kind.\(kind.rawValue)")
-        default:
-            NavigationLink {
-                MediaKindView(kind: kind)
-            } label: {
-                row
-            }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("storage.kind.\(kind.rawValue)")
         }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("storage.kind.\(kind.rawValue)")
     }
 
     // MARK: - Почта
@@ -353,10 +384,10 @@ struct StorageView: View {
                 HStack(spacing: 12) {
                     ToneIcon(symbol: "envelope.fill", tone: .blue, size: 36)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Почта iCloud")
+                        Text("Почта")
                             .font(.headline)
                             .foregroundStyle(.primary)
-                        Text("Хранится в iCloud, а не в памяти iPhone")
+                        Text("Хранится на сервере почты, а не в памяти iPhone")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -371,18 +402,21 @@ struct StorageView: View {
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.leading)
                 } else {
-                    if let quota = mail.quota {
-                        VStack(alignment: .leading, spacing: 6) {
-                            HStack {
-                                Text("По данным сервера")
-                                    .foregroundStyle(.secondary)
-                                Spacer()
-                                Text("\(quota.used.formattedBytes) из \(quota.limit.formattedBytes)")
-                                    .fontWeight(.semibold)
-                                    .monospacedDigit()
+                    // Своя строка на каждый ящик: у Gmail сервер может считать всё хранилище аккаунта Google, а не только почту.
+                    ForEach(mail.accounts) { account in
+                        if let quota = mail.quota(for: account.provider) {
+                            VStack(alignment: .leading, spacing: 6) {
+                                HStack {
+                                    Text(mail.accounts.count > 1 ? "\(account.provider.title), по данным сервера" as LocalizedStringKey : "По данным сервера")
+                                        .foregroundStyle(.secondary)
+                                    Spacer()
+                                    Text("\(quota.used.formattedBytes) из \(quota.limit.formattedBytes)")
+                                        .fontWeight(.semibold)
+                                        .monospacedDigit()
+                                }
+                                .font(.subheadline)
+                                GradientBar(value: quota.fraction, gradient: account.provider.tone.gradient, height: 6)
                             }
-                            .font(.subheadline)
-                            GradientBar(value: quota.fraction, gradient: Tone.blue.gradient, height: 6)
                         }
                     }
                     if mail.state == .finished, mailFoundCount > 0 {

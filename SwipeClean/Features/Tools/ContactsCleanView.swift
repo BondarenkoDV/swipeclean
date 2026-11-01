@@ -1,6 +1,7 @@
 import SwiftUI
 
 /// Чистка контактов: объединение дублей, удаление контактов без номера и почты, контакты без имени.
+/// Перед объединением и удалением сохраняется резервная копия, последнее действие можно отменить.
 struct ContactsCleanView: View {
     enum Part: String, CaseIterable, Identifiable {
         case duplicates
@@ -18,6 +19,8 @@ struct ContactsCleanView: View {
     @State private var confirmMergeAll = false
     @State private var confirmDelete = false
     @State private var errorMessage: String?
+    /// Копия перед последним объединением или удалением: для кнопки «Отменить».
+    @State private var lastBackup: ContactsBackup?
 
     /// Сколько контактов уйдёт после объединения дублей и удаления пустых.
     private var extraCount: Int {
@@ -26,6 +29,12 @@ struct ContactsCleanView: View {
 
     private var list: [ContactCard] {
         section == .incomplete ? cleaner.incomplete : cleaner.unnamed
+    }
+
+    /// Плашка отмены видна, пока последнюю копию не восстановили (в том числе с экрана копий).
+    private var undoBackup: ContactsBackup? {
+        guard let lastBackup else { return nil }
+        return cleaner.backups.items.first { $0.id == lastBackup.id && $0.restoredAt == nil }
     }
 
     var body: some View {
@@ -68,13 +77,13 @@ struct ContactsCleanView: View {
             Button("Объединить (\(cleaner.duplicates.count))") { merge(cleaner.duplicates) }
                 .accessibilityIdentifier("contacts.confirmMerge")
         } message: {
-            Text("В каждой группе останется самый полный контакт, к нему добавятся номера, почта и адреса остальных.")
+            Text("В каждой группе останется самый полный контакт, к нему добавятся номера, почта и адреса остальных. Перед объединением сохранится резервная копия.")
         }
         .confirmationDialog("Удалить выбранные контакты?", isPresented: $confirmDelete, titleVisibility: .visible) {
             Button("Удалить (\(selection.count))", role: .destructive, action: deleteSelected)
                 .accessibilityIdentifier("contacts.confirmDelete")
         } message: {
-            Text("У контактов нет «Недавно удалённых»: вернуть их можно только из резервной копии или iCloud.com.")
+            Text("Перед удалением сохранится резервная копия: удалённые контакты можно будет вернуть.")
         }
         .alert("Не получилось", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
             Button("OK") { errorMessage = nil }
@@ -88,6 +97,7 @@ struct ContactsCleanView: View {
             ScrollView {
                 VStack(spacing: 14) {
                     header
+                    backupsLink
                     Picker("Раздел", selection: $section) {
                         Text("Дубли (\(cleaner.duplicates.count))").tag(Part.duplicates)
                         Text("Без номера (\(cleaner.incomplete.count))").tag(Part.incomplete)
@@ -103,9 +113,80 @@ struct ContactsCleanView: View {
                 }
                 .padding(16)
             }
+            if let backup = undoBackup {
+                undoBar(backup)
+            }
             bottomBar
         }
         .disabled(isWorking)
+    }
+
+    private var backupsLink: some View {
+        NavigationLink {
+            ContactsBackupsView(cleaner: cleaner)
+        } label: {
+            HStack(spacing: 12) {
+                ToneIcon(symbol: "clock.arrow.circlepath", tone: .teal, size: 36)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Резервные копии")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.primary)
+                    Group {
+                        if let last = cleaner.backups.items.first {
+                            Text("Последняя: \(last.date, format: .dateTime.day().month().hour().minute())")
+                        } else {
+                            Text("Сохраняются перед объединением и удалением")
+                        }
+                    }
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.tertiary)
+            }
+            .card(padding: 12)
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("contacts.backups")
+    }
+
+    /// Плашка после объединения или удаления: копия сохранена, действие можно отменить.
+    private func undoBar(_ backup: ContactsBackup) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: "checkmark.shield.fill")
+                .font(.title3)
+                .foregroundStyle(Tone.green.color)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(backup.kind == .merge ? "Контакты объединены" as LocalizedStringKey : "Контакты удалены")
+                    .font(.subheadline.weight(.semibold))
+                Text("Копия сохранена в «Резервных копиях»")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 0)
+            Button("Отменить") { undo(backup) }
+                .font(.subheadline.weight(.bold))
+                .foregroundStyle(Tone.cyan.color)
+                .accessibilityIdentifier("contacts.undo")
+            Button {
+                lastBackup = nil
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.footnote.weight(.bold))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 28, height: 28)
+            }
+            .accessibilityLabel("Скрыть")
+            .accessibilityIdentifier("contacts.undoClose")
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .padding(.horizontal, 16)
+        .padding(.top, 8)
+        .transition(.move(edge: .bottom).combined(with: .opacity))
     }
 
     private var header: some View {
@@ -243,7 +324,7 @@ struct ContactsCleanView: View {
         isWorking = true
         Task {
             do {
-                try await cleaner.merge(groups)
+                lastBackup = try await cleaner.merge(groups)
             } catch {
                 errorMessage = error.localizedDescription
             }
@@ -256,8 +337,21 @@ struct ContactsCleanView: View {
         isWorking = true
         Task {
             do {
-                try await cleaner.delete(ids)
+                lastBackup = try await cleaner.delete(ids)
                 selection.removeAll()
+            } catch {
+                errorMessage = error.localizedDescription
+            }
+            isWorking = false
+        }
+    }
+
+    private func undo(_ backup: ContactsBackup) {
+        isWorking = true
+        Task {
+            do {
+                try await cleaner.restore(backup)
+                lastBackup = nil
             } catch {
                 errorMessage = error.localizedDescription
             }

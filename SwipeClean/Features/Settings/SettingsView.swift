@@ -1,17 +1,22 @@
 import SwiftUI
+import UIKit
 
 struct SettingsView: View {
     @Environment(ReviewStore.self) private var store
     @Environment(PhotoLibraryService.self) private var library
+    @Environment(DailyReminder.self) private var reminder
 
     @AppStorage(SettingsKeys.swapHorizontalSwipes) private var swapHorizontal = false
     @AppStorage(SettingsKeys.hapticsEnabled) private var hapticsEnabled = true
     @AppStorage(SettingsKeys.videoSoundEnabled) private var videoSoundEnabled = false
     @AppStorage(SettingsKeys.appearance) private var appearance = AppAppearance.system
+    @AppStorage(SettingsKeys.reminderEnabled) private var reminderEnabled = false
+    @AppStorage(SettingsKeys.reminderMinutes) private var reminderMinutes = DailyReminder.defaultMinutes
 
     @State private var showAlbums = false
     @State private var confirmReset = false
     @State private var cacheCleared = false
+    @State private var showNotificationsDenied = false
 
     var body: some View {
         NavigationStack {
@@ -43,6 +48,8 @@ struct SettingsView: View {
                 } header: {
                     Text("Жесты")
                 }
+
+                reminderSection
 
                 Section("Карточки") {
                     Toggle(isOn: $hapticsEnabled) {
@@ -115,10 +122,81 @@ struct SettingsView: View {
             .screenBackground()
             .navigationTitle("Настройки")
             .sheet(isPresented: $showAlbums) { AlbumPickerView() }
+            .notificationsDeniedAlert(isPresented: $showNotificationsDenied)
+            .onChange(of: reminderMinutes) { reminder.reschedule(store: store) }
             .confirmationDialog("Сбросить весь прогресс?", isPresented: $confirmReset, titleVisibility: .visible) {
                 Button("Сбросить", role: .destructive) { store.resetProgress() }
                     .accessibilityIdentifier("settings.confirmReset")
             }
+        }
+    }
+}
+
+// MARK: - Напоминание
+
+private extension SettingsView {
+    var reminderSection: some View {
+        Section {
+            Toggle(isOn: Binding(get: { reminderEnabled }, set: { setReminder($0) })) {
+                SettingsLabel("Ежедневное напоминание", symbol: "bell.badge.fill", tone: .orange)
+            }
+            .accessibilityIdentifier("settings.reminder")
+            if reminderEnabled {
+                DatePicker(selection: reminderTime, displayedComponents: .hourAndMinute) {
+                    SettingsLabel("Время", symbol: "clock.fill", tone: .blue)
+                }
+                .accessibilityIdentifier("settings.reminderTime")
+                if reminder.status == .denied {
+                    Button(action: openNotificationSettings) {
+                        SettingsLabel("Разрешить уведомления в Настройках", symbol: "exclamationmark.triangle.fill", tone: .red)
+                    }
+                }
+            }
+        } header: {
+            Text("Напоминание")
+        } footer: {
+            reminderFooter
+        }
+    }
+
+    @ViewBuilder
+    var reminderFooter: some View {
+        if reminderEnabled, reminder.status == .denied {
+            Text("Уведомления для SwipeClean выключены в Настройках iOS, поэтому напоминание не придёт.")
+        } else if reminderEnabled, let next = reminder.upcoming {
+            Text("Ближайшее: \(next.date.relativeDayAndTime) — «\(next.title)». В дни, когда вы уже чистили, напоминание не приходит.")
+                .accessibilityIdentifier("settings.nextReminder")
+        } else {
+            Text("Раз в день в выбранное время: воспоминания «В этот день» и ваша серия. В дни, когда вы уже чистили, не приходит.")
+        }
+    }
+
+    /// Время напоминания как дата сегодняшнего дня: так его понимает DatePicker.
+    var reminderTime: Binding<Date> {
+        Binding {
+            Calendar.current.date(
+                bySettingHour: reminderMinutes / 60, minute: reminderMinutes % 60, second: 0, of: .now
+            ) ?? .now
+        } set: { date in
+            let parts = Calendar.current.dateComponents([.hour, .minute], from: date)
+            reminderMinutes = (parts.hour ?? 20) * 60 + (parts.minute ?? 0)
+        }
+    }
+
+    func setReminder(_ isOn: Bool) {
+        guard isOn else {
+            reminder.disable(store: store)
+            return
+        }
+        Task {
+            let enabled = await reminder.enable(store: store)
+            if !enabled { showNotificationsDenied = true }
+        }
+    }
+
+    func openNotificationSettings() {
+        if let url = URL(string: UIApplication.openNotificationSettingsURLString) {
+            UIApplication.shared.open(url)
         }
     }
 }

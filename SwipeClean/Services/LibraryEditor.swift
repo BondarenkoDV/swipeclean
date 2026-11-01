@@ -6,11 +6,15 @@ import Photos
 /// Swift 6 считает изолированным и роняет приложение, когда его вызывают не с главного потока.
 /// Поэтому все блоки здесь явно `@Sendable`: они не привязаны к актору и берут фото по идентификаторам.
 enum LibraryEditor {
-    /// Удаляет фото одним системным подтверждением. Уже удалённые снаружи фото пропускаются.
+    /// Удаляет фото одним системным подтверждением. Уже удалённые снаружи фото пропускаются,
+    /// защищённые («Не трогать» и избранное, если включено) тоже: это последняя проверка перед удалением.
+    /// Секретная папка передаёт `.nothing`: туда пользователь переносит фото сам, и оригинал удаляется по его просьбе.
     /// Возвращает идентификаторы фото, которые были в медиатеке и удалены сейчас.
     @discardableResult
-    static func deleteAssets(withIDs ids: [String]) async throws -> Set<String> {
-        let existing = Set(ids).subtracting(LibraryFetcher.missingIDs(ids))
+    static func deleteAssets(withIDs ids: [String], sparing protection: ProtectionPolicy = .current) async throws -> Set<String> {
+        let existing = Set(ids)
+            .subtracting(LibraryFetcher.missingIDs(ids))
+            .subtracting(protection.protectedIDs(among: ids))
         guard !existing.isEmpty else { return [] }
         try await PHPhotoLibrary.shared().performChanges(deleteChanges(for: Array(existing)))
         return existing

@@ -1,8 +1,9 @@
 import Photos
 import SwiftUI
 
-/// Список групп похожих фото. В каждой группе по умолчанию оставляется лучший кадр.
-/// Если пользователь поменял отметки, снизу появляется кнопка, которая разбирает только изменённые группы.
+/// Список групп похожих фото. В каждой группе по умолчанию оставляется лучший кадр, он отмечен «Лучший»,
+/// а под группой написано, почему выбран именно он. Если пользователь поменял отметки, снизу появляется кнопка,
+/// которая разбирает только изменённые группы.
 struct GroupsView: View {
     let title: LocalizedStringKey
     let groups: [AssetGroup]
@@ -10,6 +11,7 @@ struct GroupsView: View {
 
     @Environment(ReviewStore.self) private var store
     @Environment(FullScreenPresenter.self) private var fullScreen
+    @Environment(ProtectedStore.self) private var protection
     /// Для каждой группы — фото, которые пользователь решил оставить.
     @State private var kept: [String: Set<String>] = [:]
     @State private var handled: Set<String> = []
@@ -20,7 +22,7 @@ struct GroupsView: View {
 
     /// Группы, где отметки пользователя расходятся с предложением приложения.
     private var changedGroups: [AssetGroup] {
-        visibleGroups.filter { keptSet($0) != $0.keepIDs }
+        visibleGroups.filter { keptSet($0) != suggested($0) }
     }
 
     var body: some View {
@@ -69,8 +71,10 @@ struct GroupsView: View {
         return VStack(alignment: .leading, spacing: 10) {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 6) {
-                    ForEach(group.assets, id: \.localIdentifier) { asset in
+                    ForEach(displayOrder(group), id: \.localIdentifier) { asset in
                         let isKept = keepSet.contains(asset.localIdentifier)
+                        let isProtected = protection.protects(asset)
+                        let isBest = asset.localIdentifier == group.bestID
                         AssetThumbnail(asset: asset, side: 110)
                             .frame(width: 110, height: 110)
                             // Превью с заполнением шире рамки, а clipShape обрезает только картинку:
@@ -79,16 +83,13 @@ struct GroupsView: View {
                             .clipShape(RoundedRectangle(cornerRadius: 10))
                             .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(isKept ? Color.green : Color.red.opacity(0.7), lineWidth: 3))
                             .overlay(alignment: .topLeading) {
-                                if asset.localIdentifier == group.bestID {
-                                    Image(systemName: "star.fill")
-                                        .font(.caption)
-                                        .padding(5)
-                                        .background(.yellow, in: Circle())
-                                        .padding(4)
+                                if isBest {
+                                    BestBadge()
                                 }
                             }
                             .overlay(alignment: .bottomTrailing) {
-                                Image(systemName: isKept ? "checkmark.circle.fill" : "trash.circle.fill")
+                                // Защищённое фото нельзя отметить к удалению: вместо галочки — щит.
+                                Image(systemName: isProtected ? "lock.shield.fill" : isKept ? "checkmark.circle.fill" : "trash.circle.fill")
                                     .font(.title3)
                                     .symbolRenderingMode(.palette)
                                     .foregroundStyle(.white, isKept ? Color.green : Color.red)
@@ -99,13 +100,20 @@ struct GroupsView: View {
                             .peekAndPop(asset) { toggle(asset, in: group) }
                             .accessibilityElement(children: .ignore)
                             .accessibilityAddTraits(.isButton)
-                            .accessibilityLabel("Фото")
-                            .accessibilityValue(isKept ? "Останется" : "В корзину")
+                            .accessibilityLabel(isBest ? "Лучший кадр" : "Фото")
+                            .accessibilityValue(isProtected ? "Не трогать" : isKept ? "Останется" : "В корзину")
                             .accessibilityAction { toggle(asset, in: group) }
                             .accessibilityAction(named: "Открыть целиком") { fullScreen.asset = asset }
                             .accessibilityIdentifier("groups.photo")
                     }
                 }
+            }
+            if let reason = group.bestReason {
+                Label(reason.title, systemImage: reason.symbol)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .accessibilityElement(children: .combine)
+                    .accessibilityIdentifier("groups.bestReason")
             }
             Button {
                 apply([group])
@@ -145,15 +153,31 @@ struct GroupsView: View {
         .accessibilityIdentifier("groups.applySelection")
     }
 
+    private func protectedIDs(in group: AssetGroup) -> Set<String> {
+        Set(group.assets.filter { protection.protects($0) }.map(\.localIdentifier))
+    }
+
+    /// Что предлагает приложение. Защищённые фото остаются всегда, даже если их защитили уже на этом экране.
+    private func suggested(_ group: AssetGroup) -> Set<String> {
+        group.keepIDs.union(protectedIDs(in: group))
+    }
+
+    /// Лучший кадр первым, остальные в порядке съёмки: в длинной группе он иначе оказывается за краем экрана.
+    private func displayOrder(_ group: AssetGroup) -> [PHAsset] {
+        guard let best = group.assets.first(where: { $0.localIdentifier == group.bestID }) else { return group.assets }
+        return [best] + group.assets.filter { $0.localIdentifier != group.bestID }
+    }
+
     private func keptSet(_ group: AssetGroup) -> Set<String> {
-        guard let chosen = kept[group.id] else { return group.keepIDs }
+        guard let chosen = kept[group.id] else { return suggested(group) }
         let present = chosen.intersection(group.assets.map(\.localIdentifier))
         // Все фото, которые пользователь оставил, разобрали в другом месте: возвращаемся к предложению,
-        // а не удаляем всю группу. Если он сам снял все отметки, это его выбор.
-        return present.isEmpty && !chosen.isEmpty ? group.keepIDs : present
+        // а не удаляем всю группу. Если он сам снял все отметки, это его выбор. Защищённые остаются в любом случае.
+        return (present.isEmpty && !chosen.isEmpty ? group.keepIDs : present).union(protectedIDs(in: group))
     }
 
     private func toggle(_ asset: PHAsset, in group: AssetGroup) {
+        guard !protection.protects(asset) else { return }
         var set = keptSet(group)
         let id = asset.localIdentifier
         if set.contains(id) {
@@ -162,7 +186,7 @@ struct GroupsView: View {
             set.insert(id)
         }
         // Вернул всё как предлагало приложение: группа больше не считается изменённой.
-        kept[group.id] = set == group.keepIDs ? nil : set
+        kept[group.id] = set == suggested(group) ? nil : set
     }
 
     /// Какие кадры оставлять при разборе групп.
@@ -177,7 +201,7 @@ struct GroupsView: View {
     private func apply(_ groups: [AssetGroup], picks: Picks = .mine) {
         var decisions: [ReviewStore.Decision] = []
         for group in groups {
-            let keepSet = picks == .mine ? keptSet(group) : group.keepIDs
+            let keepSet = picks == .mine ? keptSet(group) : suggested(group)
             for asset in group.assets {
                 decisions.append(ReviewStore.Decision(asset, keepSet.contains(asset.localIdentifier) ? .keep : .trash))
             }
@@ -185,5 +209,52 @@ struct GroupsView: View {
         }
         store.record(decisions)
         analyzer.removeHandled(Set(decisions.map(\.localIdentifier)))
+    }
+}
+
+/// Отметка лучшего кадра поверх превью.
+private struct BestBadge: View {
+    var body: some View {
+        Label("Лучший", systemImage: "star.fill")
+            .font(.caption2.weight(.bold))
+            .labelStyle(BadgeLabelStyle())
+            .foregroundStyle(.black)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 3)
+            .background(.yellow, in: Capsule())
+            .padding(4)
+    }
+
+    /// Звезда и слово вплотную: в превью 110 точек обычный отступ Label слишком велик.
+    private struct BadgeLabelStyle: LabelStyle {
+        func makeBody(configuration: Configuration) -> some View {
+            HStack(spacing: 2) {
+                configuration.icon
+                configuration.title
+            }
+        }
+    }
+}
+
+extension FaceQuality.Reason {
+    /// Подпись под группой: почему этот кадр назван лучшим.
+    var title: LocalizedStringKey {
+        switch self {
+        case .favorite: "Лучший — из избранного"
+        case .chosen: "Лучший — вы отметили его в серии"
+        case .faces: "Лучший по лицам: открытые глаза и чёткость"
+        case .camera: "Лучший — выбор камеры для серии"
+        case .sharpness: "Лучший — самый резкий кадр"
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .favorite: "heart.fill"
+        case .chosen: "hand.tap.fill"
+        case .faces: "face.smiling"
+        case .camera: "camera.fill"
+        case .sharpness: "camera.aperture"
+        }
     }
 }

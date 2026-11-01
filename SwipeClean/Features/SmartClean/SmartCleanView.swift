@@ -1,7 +1,7 @@
 import Photos
 import SwiftUI
 
-/// Умная чистка. Сначала почта iCloud (спам, рассылки, старые письма), затем точные копии фото и видео:
+/// Умная чистка. Сначала почта iCloud и Gmail (спам, рассылки, старые письма), затем точные копии фото и видео:
 /// их можно убрать одной кнопкой. Похожие кадры, серии, размытые фото и старые скриншоты открываются по плиткам.
 /// Тяжёлые видео только показываются: общая кнопка их не трогает, удалять или нет, решает пользователь.
 /// Анализатор и почта общие на всё приложение: главная показывает их прогресс и итог.
@@ -112,7 +112,7 @@ struct SmartCleanView: View {
             VStack(alignment: .leading, spacing: 14) {
                 HStack(spacing: 12) {
                     ToneIcon(symbol: "wand.and.stars", tone: .violet, size: 44)
-                    Text("Проверю почту iCloud и найду точные копии фото и видео, похожие кадры, серии, размытые фото и старые скриншоты. Тяжёлые видео только покажу: удалять их или нет, решаете вы. Фото анализируются только на устройстве.")
+                    Text("Проверю почту и найду точные копии фото и видео, похожие кадры, серии, размытые фото и старые скриншоты. Тяжёлые видео только покажу: удалять их или нет, решаете вы. Фото анализируются только на устройстве.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
@@ -175,7 +175,7 @@ struct SmartCleanView: View {
                 MailCleanView()
             } label: {
                 CategoryTile(
-                    title: "Почта iCloud",
+                    title: "Почта",
                     symbol: "envelope.fill",
                     tone: .blue,
                     detail: Text(mailTileDetail),
@@ -224,7 +224,7 @@ struct SmartCleanView: View {
                     HStack(spacing: 12) {
                         ToneIcon(symbol: "envelope.fill", tone: .blue, size: 40)
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("Почта iCloud")
+                            Text(verbatim: mail.accountsTitle)
                                 .font(.headline)
                                 .foregroundStyle(.primary)
                             Text(mailStatus)
@@ -277,10 +277,10 @@ struct SmartCleanView: View {
                 HStack(spacing: 12) {
                     ToneIcon(symbol: "envelope.badge.fill", tone: .blue, size: 40)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Почта iCloud")
+                        Text("Почта")
                             .font(.headline)
                             .foregroundStyle(.primary)
-                        Text("Подключите, чтобы умная чистка убирала спам и рассылки")
+                        Text("Подключите iCloud Mail или Gmail, чтобы умная чистка убирала спам и рассылки")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.leading)
@@ -300,7 +300,7 @@ struct SmartCleanView: View {
 
     private var mailStatus: LocalizedStringKey {
         switch mail.state {
-        case .connecting: "Подключаюсь к iCloud…"
+        case .connecting: "Подключаюсь к почте…"
         case .scanning: "Проверяю письма…"
         case .cleaning: "Удаляю письма…"
         case .finished: mail.selectedCount > 0 ? "К чистке писем: \(mail.selectedCount)" : "Лишних писем нет"
@@ -339,7 +339,7 @@ struct SmartCleanView: View {
         case let .scanning(done, total):
             VStack(alignment: .leading, spacing: 6) {
                 GradientBar(value: total == 0 ? 0 : Double(done) / Double(total), gradient: Tone.blue.gradient)
-                Text(total == 0 ? "Подключаюсь к iCloud…" as LocalizedStringKey : "Проверено \(done) из \(total)")
+                Text(total == 0 ? "Подключаюсь к почте…" as LocalizedStringKey : "Проверено \(done) из \(total)")
                     .font(.caption.monospacedDigit())
                     .foregroundStyle(.secondary)
             }
@@ -414,7 +414,7 @@ struct SmartCleanView: View {
         var parts: [String] = []
         if mailCount > 0 {
             let movable = mail.selectedMovableCount
-            parts.append(String(localized: "Писем навсегда из «Спама» и «Удалённых»: \(mailCount - movable), в «Удалённые»: \(movable)."))
+            parts.append(String(localized: "Писем навсегда из «Спама» и «Удалённых»: \(mailCount - movable), в корзину почты: \(movable)."))
         }
         if !duplicateExtras.isEmpty {
             parts.append(String(localized: "Копий фото и видео в корзину приложения: \(duplicateExtras.count), в каждой группе останется лучший экземпляр."))

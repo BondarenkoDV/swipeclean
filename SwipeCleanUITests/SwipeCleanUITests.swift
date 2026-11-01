@@ -319,6 +319,65 @@ final class SwipeCleanUITests: XCTestCase {
         assertRunning(app)
     }
 
+    /// Раздел открывается из легенды диаграммы: сводка и группы по размеру. Группа оставляет в сетке только свои фото,
+    /// «Выбрать все» отмечает только их и показывает, сколько они весят, а после корзины группа уходит из сводки.
+    func testStorageKindFiltersBySizeAndTrashes() throws {
+        let app = launch()
+        try requirePhotos(app)
+        app.tabBars.buttons["Главная"].tap()
+        element(app, "home.storage").tap()
+
+        let legend = app.buttons["storage.legend.photos"]
+        XCTAssertTrue(legend.waitForExistence(timeout: 60), "В легенде нет фото")
+        legend.tap()
+        let open = app.buttons["storage.open"]
+        XCTAssertTrue(open.waitForExistence(timeout: 5), "Под легендой нет перехода к фото")
+        scrollTo(open, in: app)
+        attachScreenshot(app, "storage-legend-open")
+        open.tap()
+
+        let summary = element(app, "kind.summary")
+        XCTAssertTrue(summary.label.contains("фото"), summary.label)
+        XCTAssertTrue(app.navigationBars["Фото"].exists)
+        let items = app.buttons.matching(identifier: "selection.item")
+        XCTAssertTrue(items.firstMatch.waitForExistence(timeout: 30), "Сетка раздела не открылась")
+        let selected = element(app, "selection.selectedBytes")
+        XCTAssertEqual(selected.label, "Отметьте, что убрать")
+        attachScreenshot(app, "kind-summary")
+
+        // Самая лёгкая из групп: её границы известны по порогам для фото (20, 5 и 2 МБ).
+        let buckets = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "kind.bucket."))
+        XCTAssertGreaterThan(buckets.count, 0, "Нет групп по размеру")
+        let groupCount = buckets.count
+        let lightest = buckets.element(boundBy: groupCount - 1)
+        let lower = Double(lightest.identifier.replacingOccurrences(of: "kind.bucket.", with: "")) ?? -1
+        let upper = [20e6, 5e6, 2e6].last { $0 > lower }
+        lightest.tap()
+        attachScreenshot(app, "kind-bucket")
+        // Размеры на клетках округлены, поэтому границы с запасом в пять процентов.
+        let deadline = Date().addingTimeInterval(5)
+        var outside: [Double] = []
+        repeat {
+            let sizes = (0..<min(items.count, 12)).compactMap { bytes(items.element(boundBy: $0)) }
+            outside = sizes.filter { size in size < lower * 0.95 || upper.map { size >= $0 * 1.05 } ?? false }
+            if !sizes.isEmpty, outside.isEmpty { break }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.3))
+        } while Date() < deadline
+        XCTAssertEqual(outside, [], "В сетке фото не из группы от \(lower) до \(String(describing: upper))")
+
+        app.buttons["selection.toggleAll"].tap()
+        XCTAssertTrue(selected.label.hasPrefix("Выбрано: "), selected.label)
+        app.buttons["selection.trash"].tap()
+        if groupCount == 1 {
+            XCTAssertTrue(app.staticTexts["Пусто"].waitForExistence(timeout: 5), "После корзины в разделе что-то осталось")
+        } else {
+            XCTAssertTrue(waitForDisappearance(lightest), "Группа осталась в сводке после корзины")
+            XCTAssertTrue(items.firstMatch.waitForExistence(timeout: 5), "Остальные фото раздела пропали из сетки")
+            XCTAssertEqual(buckets.count, groupCount - 1)
+        }
+        assertRunning(app)
+    }
+
     /// Видео в разделе памяти: размер справа внизу на каждой клетке, сначала самые тяжёлые,
     /// меню сортировки переворачивает порядок. Фото раздела и сжатие сортируются тем же меню.
     func testGridsSortBySizeAndShowSize() throws {
@@ -401,6 +460,61 @@ final class SwipeCleanUITests: XCTestCase {
         assertRunning(app)
     }
 
+    /// Live Photos становятся обычными фото. Тестовые Live Photos приложение собирает само (`-seedLivePhotos`):
+    /// симулятор их не снимает. Отказ в системном окне не меняет медиатеку совсем (копии и удаление — одна транзакция),
+    /// подтверждение убирает видео, а число фото не меняется: каждое Live Photo заменено своим снимком.
+    func testLivePhotosBecomeStills() throws {
+        let app = launch(extra: ["-seedLivePhotos"])
+        app.tabBars.buttons["Главная"].tap()
+        let tile = app.buttons["home.livePhotos"]
+        scrollTo(tile, in: app)
+        tile.tap()
+
+        let items = app.buttons.matching(identifier: "live.item")
+        guard items.firstMatch.waitForExistence(timeout: 60) else {
+            let error = app.staticTexts["live.seedError"]
+            XCTFail(error.exists ? error.label : "Нет Live Photos: тестовые не появились")
+            return
+        }
+        let live = liveCount(app)
+        XCTAssertGreaterThanOrEqual(live ?? 0, 2, element(app, "live.summary").label)
+        XCTAssertEqual(items.count, live)
+        XCTAssertNotNil(bytes(items.firstMatch), "На превью нет размера видео")
+        attachScreenshot(app, "Live Photos")
+
+        app.navigationBars.buttons.firstMatch.tap()
+        let photos = stablePhotoCount(app)
+        XCTAssertNotNil(photos, element(app, "home.storage").label)
+
+        // Отказ в системном окне: ни копий, ни удаления.
+        scrollTo(tile, in: app)
+        tile.tap()
+        element(app, "live.toggleAll").tap()
+        app.buttons["live.start"].tap()
+        XCTAssertTrue(tapSystemButton(app, ["Don’t Allow", "Don't Allow", "Не разрешать", "Cancel", "Отменить"], timeout: 60), "Не появилось системное подтверждение")
+        XCTAssertTrue(element(app, "live.report").label.contains("Отменено"), element(app, "live.report").label)
+        XCTAssertEqual(liveCount(app), live, "После отказа Live Photos изменились")
+        app.navigationBars.buttons.firstMatch.tap()
+        XCTAssertEqual(stablePhotoCount(app), photos, "После отказа в медиатеке появились копии")
+
+        // Подтверждение: все Live Photos стали обычными фото.
+        scrollTo(tile, in: app)
+        tile.tap()
+        element(app, "live.toggleAll").tap()
+        app.buttons["live.start"].tap()
+        XCTAssertTrue(tapSystemButton(app, Self.deleteLabels, timeout: 60), "Не появилось системное подтверждение")
+        let report = element(app, "live.report")
+        XCTAssertTrue(report.label.contains("Сэкономлено"), report.label)
+        let summary = element(app, "live.summary")
+        let none = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label BEGINSWITH 'Live Photos: 0'"), object: summary)
+        XCTAssertEqual(XCTWaiter().wait(for: [none], timeout: 10), .completed, summary.label)
+        XCTAssertTrue(element(app, "live.empty").exists)
+        attachScreenshot(app, "Live Photos: готово")
+        app.navigationBars.buttons.firstMatch.tap()
+        XCTAssertEqual(stablePhotoCount(app), photos, "Число фото изменилось: снимки не заменили Live Photos один к одному")
+        assertRunning(app)
+    }
+
     func testVaultPasscodeImportAndRestore() throws {
         let app = launch()
         try requirePhotos(app)
@@ -470,6 +584,65 @@ final class SwipeCleanUITests: XCTestCase {
         assertRunning(app)
     }
 
+    /// Перед объединением и удалением сохраняется копия: объединение отменяется кнопкой «Отменить»,
+    /// удаление — восстановлением из «Резервных копий», полная копия делается кнопкой.
+    func testContactsBackupUndoAndRestore() throws {
+        let app = launch(extra: ["-seedContacts"])
+        app.tabBars.buttons["Главная"].tap()
+        let tile = app.buttons["home.contacts"]
+        scrollTo(tile, in: app)
+        tile.tap()
+        tapSystemButton(app, Self.contactsAccessLabels, timeout: 3)
+
+        let duplicates = app.staticTexts.matching(NSPredicate(format: "label == 'Тест Дубль'"))
+        XCTAssertTrue(duplicates.firstMatch.waitForExistence(timeout: 20), "Нет тестовых дублей: доступ к контактам не выдан?")
+        let group = app.otherElements.matching(identifier: "contacts.group").containing(NSPredicate(format: "label == 'Тест Дубль'")).firstMatch
+        (group.exists ? group.buttons["contacts.merge"] : app.buttons["contacts.merge"].firstMatch).tap()
+        XCTAssertTrue(waitForCount(duplicates, 0, timeout: 10), "Дубли не объединились")
+
+        // «Отменить» возвращает удалённый при объединении контакт: группа дублей снова на экране.
+        let undo = app.buttons["contacts.undo"]
+        XCTAssertTrue(undo.waitForExistence(timeout: 5), "Нет кнопки отмены после объединения")
+        undo.tap()
+        XCTAssertTrue(waitForCount(duplicates, 2, timeout: 10), "Объединение не отменилось: \(duplicates.count) «Тест Дубль»")
+        XCTAssertTrue(waitForDisappearance(undo), "Плашка отмены не скрылась после восстановления")
+
+        app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Без номера'")).firstMatch.tap()
+        let empty = app.buttons.matching(NSPredicate(format: "identifier == 'contacts.row' AND label CONTAINS 'Тест Без Номера'"))
+        XCTAssertTrue(empty.firstMatch.waitForExistence(timeout: 5))
+        empty.firstMatch.tap()
+        app.buttons["contacts.delete"].tap()
+        let confirm = app.buttons["contacts.confirmDelete"].firstMatch
+        XCTAssertTrue(confirm.waitForExistence(timeout: 5))
+        confirm.tap()
+        XCTAssertTrue(waitForCount(empty, 0, timeout: 10), "Контакт не удалился")
+
+        // Удалённый контакт возвращается из копии на экране «Резервные копии».
+        let backupsLink = element(app, "contacts.backups")
+        backupsLink.tap()
+        let items = app.otherElements.matching(identifier: "backups.item")
+        XCTAssertTrue(waitForCount(items, 2, timeout: 10), "Ожидались две копии, на экране \(items.count)")
+        XCTAssertTrue(app.staticTexts["Перед удалением"].exists)
+        XCTAssertTrue(app.staticTexts["Перед объединением"].exists)
+        let restore = app.buttons.matching(identifier: "backups.restore")
+        XCTAssertEqual(restore.count, 1, "Отменённое объединение должно быть отмечено как восстановленное")
+        restore.firstMatch.tap()
+        let confirmRestore = app.buttons["backups.confirmRestore"].firstMatch
+        XCTAssertTrue(confirmRestore.waitForExistence(timeout: 5))
+        confirmRestore.tap()
+        XCTAssertTrue(waitForCount(restore, 0, timeout: 10), "Копия не восстановилась")
+        XCTAssertEqual(app.descendants(matching: .any).matching(identifier: "backups.restored").count, 2)
+
+        app.buttons["backups.makeFull"].tap()
+        XCTAssertTrue(waitForCount(items, 3, timeout: 15), "Полная копия не появилась")
+        XCTAssertTrue(app.staticTexts["Все контакты"].exists)
+        XCTAssertTrue(app.buttons.matching(identifier: "backups.share").firstMatch.exists)
+
+        app.navigationBars.buttons.firstMatch.tap()
+        XCTAssertTrue(empty.firstMatch.waitForExistence(timeout: 10), "Удалённый контакт не вернулся из копии")
+        assertRunning(app)
+    }
+
     func testCalendarDeletesOldEvents() throws {
         let app = launch(extra: ["-seedCalendar"])
         app.tabBars.buttons["Главная"].tap()
@@ -492,7 +665,7 @@ final class SwipeCleanUITests: XCTestCase {
         assertRunning(app)
     }
 
-    // MARK: - Почта iCloud
+    // MARK: - Почта iCloud и Gmail
 
     /// Тестовый ящик без сети: спам, удалённые, рассылки, тяжёлое и старое непрочитанное письмо.
     /// Проверяем категории, снятие письма с чистки, чистку одной кнопкой и отключение почты.
@@ -535,21 +708,178 @@ final class SwipeCleanUITests: XCTestCase {
         XCTAssertFalse(app.buttons["mail.category.trash"].exists)
         XCTAssertFalse(app.buttons["mail.category.newsletters"].exists)
 
-        // Отключение убирает пароль из связки ключей и возвращает экран подключения.
+        // Отключение убирает пароль из связки ключей и возвращает экран подключения с обоими сервисами.
         app.buttons["mail.menu"].tap()
-        app.buttons["mail.disconnect"].tap()
+        app.buttons["mail.disconnect.icloud"].tap()
         let confirmDisconnect = app.buttons["mail.confirmDisconnect"].firstMatch
         XCTAssertTrue(confirmDisconnect.waitForExistence(timeout: 5))
         confirmDisconnect.tap()
         XCTAssertTrue(app.buttons["mail.connect"].waitForExistence(timeout: 5), "После отключения нет кнопки подключения")
-        XCTAssertTrue(element(app, "mail.createPassword").exists, "Нет кнопки создания пароля приложения")
+        XCTAssertTrue(element(app, "mail.connect.gmail").exists, "Нет кнопки подключения Gmail")
+
+        // Окно подключения ведёт создавать пароль приложения у Apple.
+        app.buttons["mail.connect"].tap()
+        XCTAssertTrue(element(app, "mail.createPasswordLink").exists, "Нет кнопки создания пароля приложения")
+        app.navigationBars.buttons["Отмена"].tap()
         assertRunning(app)
     }
 
-    /// Умная чистка сначала проверяет почту и чистит её вместе с точными копиями одной кнопкой.
-    /// По умолчанию уходят спам (3), «Удалённые» (2) и рассылки (2): тяжёлые и старые непрочитанные выключены.
-    func testSmartCleanCleansMailAndCopies() throws {
+    /// Письма из «Входящих» собраны по отправителям: у кого больше писем — сверху. Отправителя можно открыть,
+    /// снять письмо с чистки и перенести остальное в «Удалённые», а нескольких отметить и убрать разом.
+    func testMailSendersGroupAndDelete() throws {
         let app = launch(extra: ["-seedMail"])
+        app.tabBars.buttons["Главная"].tap()
+        let tile = app.buttons["home.mail"]
+        scrollTo(tile, in: app)
+        tile.tap()
+        XCTAssertTrue(app.buttons["mail.category.junk"].waitForExistence(timeout: 15), "Категории почты не появились")
+
+        // В тестовом ящике 9 писем во «Входящих» от 7 отправителей; больше всех у «Тест Магазин».
+        let card = app.buttons["mail.senders"]
+        scrollTo(card, in: app)
+        XCTAssertTrue(card.waitForExistence(timeout: 5), "Нет карточки отправителей")
+        XCTAssertTrue(card.label.contains("Тест Магазин"), card.label)
+        card.tap()
+
+        let rows = app.buttons.matching(identifier: "mail.sender")
+        XCTAssertTrue(waitForCount(rows, 7), "Отправителей должно быть 7, а не \(rows.count)")
+        let store = rows.element(boundBy: 0)
+        XCTAssertTrue(store.label.contains("Тест Магазин") && store.label.contains("3"), store.label)
+
+        // Письма отправителя: одно снимаем с чистки, два уходят в «Удалённые».
+        store.tap()
+        let messages = app.buttons.matching(identifier: "mail.message")
+        XCTAssertTrue(waitForCount(messages, 3), "У отправителя должно быть 3 письма")
+        messages.element(boundBy: 0).tap()
+        let delete = app.buttons["mail.sender.delete"]
+        XCTAssertTrue(delete.waitForExistence(timeout: 5))
+        XCTAssertTrue(delete.label.contains("2"), delete.label)
+        delete.tap()
+        let confirm = app.buttons["mail.sender.confirmDelete"].firstMatch
+        XCTAssertTrue(confirm.waitForExistence(timeout: 5))
+        confirm.tap()
+        let report = element(app, "mail.senders.report")
+        XCTAssertTrue(report.label.contains("2"), "Перенестись должны 2 письма: \(report.label)")
+        XCTAssertTrue(waitForCount(messages, 1), "Снятое с чистки письмо должно остаться")
+        attachScreenshot(app, "Письма отправителя")
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+
+        // Два адреса рассылки с одним именем: отмечаем оба и убираем одной кнопкой.
+        let picks = app.buttons.matching(NSPredicate(format: "identifier == 'mail.sender.pick' AND label == 'Тест Рассылка'"))
+        XCTAssertTrue(waitForCount(picks, 2), "Должно быть два адреса «Тест Рассылка»")
+        picks.element(boundBy: 0).tap()
+        picks.element(boundBy: 1).tap()
+        let deleteAll = app.buttons["mail.senders.delete"]
+        XCTAssertTrue(deleteAll.waitForExistence(timeout: 5))
+        XCTAssertTrue(deleteAll.label.contains("2"), deleteAll.label)
+        attachScreenshot(app, "Отправители")
+        deleteAll.tap()
+        let confirmAll = app.buttons["mail.senders.confirmDelete"].firstMatch
+        XCTAssertTrue(confirmAll.waitForExistence(timeout: 5))
+        confirmAll.tap()
+        XCTAssertTrue(element(app, "mail.senders.report").label.contains("2"))
+        XCTAssertTrue(waitForCount(rows, 5), "Ушедшие отправители должны пропасть из списка: \(rows.count)")
+
+        // Рассылки ушли и из категории на экране почты, спам не тронут.
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        XCTAssertTrue(app.buttons["mail.category.junk"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["mail.category.junk"].label.contains("3"), app.buttons["mail.category.junk"].label)
+        XCTAssertFalse(app.buttons["mail.category.newsletters"].exists, "Рассылки должны пропасть из категорий")
+
+        // Сортировка по месту: сверху отправитель тяжёлого письма. Поиск по адресу оставляет одного.
+        scrollTo(card, in: app)
+        card.tap()
+        XCTAssertTrue(waitForCount(rows, 5))
+        pickSort(app, menu: "mail.senders.sort", "Больше места")
+        let heaviest = NSPredicate(format: "label CONTAINS 'Тест Тяжёлое'")
+        XCTAssertEqual(XCTWaiter().wait(for: [XCTNSPredicateExpectation(predicate: heaviest, object: rows.element(boundBy: 0))], timeout: 5), .completed,
+                       "Сверху должен быть отправитель тяжёлого письма: \(rows.element(boundBy: 0).label)")
+        let search = app.searchFields.firstMatch
+        if !search.waitForExistence(timeout: 3) {
+            // В новых iOS поиск бывает свёрнут в кнопку на панели.
+            app.buttons.matching(NSPredicate(format: "label IN %@", ["Поиск", "Search"])).firstMatch.tap()
+        }
+        XCTAssertTrue(search.waitForExistence(timeout: 5), "Нет поиска")
+        search.tap()
+        search.typeText("boss")
+        XCTAssertTrue(waitForCount(rows, 1), "Поиск должен оставить одного отправителя: \(rows.count)")
+        assertRunning(app)
+    }
+
+    /// Gmail подключается паролем приложения рядом с уже подключённой iCloud: проверка и чистка идут по обоим
+    /// ящикам, а отключение Gmail не трогает iCloud.
+    func testGmailConnectsAlongsideICloud() throws {
+        let app = launch(extra: ["-seedMail"])
+        app.tabBars.buttons["Главная"].tap()
+        let tile = app.buttons["home.mail"]
+        scrollTo(tile, in: app)
+        tile.tap()
+
+        let junk = app.buttons["mail.category.junk"]
+        XCTAssertTrue(junk.waitForExistence(timeout: 15), "Категории почты не появились")
+        XCTAssertTrue(junk.label.contains("3"), "Пока только iCloud: 3 письма в спаме, а не \(junk.label)")
+
+        // Окно Gmail: подсказка ведёт на страницу паролей приложений Google, пароль вставляется с пробелами.
+        let add = app.buttons["mail.add.gmail"]
+        XCTAssertTrue(add.waitForExistence(timeout: 5), "Нет кнопки добавления Gmail")
+        add.tap()
+        XCTAssertTrue(element(app, "mail.createPasswordLink").exists, "Нет кнопки создания пароля приложения")
+        let email = app.textFields["mail.email"]
+        XCTAssertTrue(email.waitForExistence(timeout: 5))
+        email.tap()
+        email.typeText("test@gmail.com")
+        let password = app.secureTextFields["mail.password"]
+        password.tap()
+        password.typeText("abcd efgh ijkl mnop")
+        XCTAssertTrue(app.buttons["mail.signIn"].isEnabled, "Кнопка подключения должна стать доступной")
+        attachScreenshot(app, "gmail-connect")
+        // Клавиша ввода подключает сразу: кнопку внизу формы закрывает клавиатура.
+        password.typeText("\n")
+
+        // После подключения проверка идёт заново по обоим ящикам: спам 3 + 2.
+        let gmailCard = element(app, "mail.account.gmail")
+        XCTAssertTrue(gmailCard.label.contains("test@gmail.com"), gmailCard.label)
+        XCTAssertTrue(element(app, "mail.account.icloud").exists, "iCloud должна остаться подключённой")
+        let both = NSPredicate(format: "label CONTAINS %@", "5")
+        XCTAssertEqual(XCTWaiter().wait(for: [XCTNSPredicateExpectation(predicate: both, object: app.buttons["mail.category.junk"])], timeout: 15), .completed,
+                       "В спаме должно быть 5 писем из двух ящиков: \(app.buttons["mail.category.junk"].label)")
+        attachScreenshot(app, "gmail-both")
+
+        // В списке видно, из какого ящика письмо.
+        app.buttons["mail.category.junk"].tap()
+        let gmailRows = app.buttons.matching(NSPredicate(format: "identifier == 'mail.message' AND label CONTAINS 'Gmail'"))
+        XCTAssertTrue(waitForCount(gmailRows, 2, timeout: 5), "В спаме должно быть 2 письма из Gmail")
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+
+        // Одна кнопка чистит оба ящика: iCloud 3 + 2 + 2, Gmail 2 + 1 + 1.
+        let clean = app.buttons["mail.clean"]
+        XCTAssertTrue(clean.waitForExistence(timeout: 5))
+        XCTAssertTrue(clean.label.contains("11"), "Кнопка должна считать 11 писем: \(clean.label)")
+        clean.tap()
+        let confirm = app.buttons["mail.confirmClean"].firstMatch
+        XCTAssertTrue(confirm.waitForExistence(timeout: 5))
+        confirm.tap()
+        let report = element(app, "mail.report")
+        XCTAssertTrue(report.waitForExistence(timeout: 15), "Отчёт о чистке не появился")
+        XCTAssertTrue(report.label.contains("11"), "Удалиться должны 11 писем: \(report.label)")
+
+        // Отключаем только Gmail: iCloud остаётся, а Gmail снова можно добавить.
+        app.buttons["mail.menu"].tap()
+        app.buttons["mail.disconnect.gmail"].tap()
+        let confirmDisconnect = app.buttons["mail.confirmDisconnect"].firstMatch
+        XCTAssertTrue(confirmDisconnect.waitForExistence(timeout: 5))
+        confirmDisconnect.tap()
+        XCTAssertTrue(waitForDisappearance(app.descendants(matching: .any)["mail.account.gmail"], timeout: 5), "Gmail не отключилась")
+        XCTAssertTrue(app.descendants(matching: .any)["mail.account.icloud"].exists, "iCloud отключилась вместе с Gmail")
+        XCTAssertTrue(app.buttons["mail.add.gmail"].waitForExistence(timeout: 5), "Gmail нельзя добавить снова")
+        assertRunning(app)
+    }
+
+    /// Умная чистка сначала проверяет почту обоих ящиков и чистит её вместе с точными копиями одной кнопкой.
+    /// По умолчанию уходят спам, «Удалённые» и рассылки (iCloud 3 + 2 + 2, Gmail 2 + 1 + 1):
+    /// тяжёлые и старые непрочитанные выключены.
+    func testSmartCleanCleansMailAndCopies() throws {
+        let app = launch(extra: ["-seedMail", "-seedGmail"])
         app.tabBars.buttons["Главная"].tap()
         XCTAssertTrue(element(app, "home.mailPeriod").exists, "На главной нет периода почты")
         element(app, "home.smartClean").tap()
@@ -559,20 +889,21 @@ final class SwipeCleanUITests: XCTestCase {
         XCTAssertTrue(app.buttons["smart.rescan"].waitForExistence(timeout: 300), "Анализ не закончился")
 
         let junk = element(app, "smart.mail.junk")
-        XCTAssertTrue(junk.label.contains("3"), "В спаме должно быть 3 письма: \(junk.label)")
+        XCTAssertTrue(junk.label.contains("5"), "В спаме должно быть 5 писем из двух ящиков: \(junk.label)")
+        XCTAssertTrue(element(app, "smart.mailDetails").label.contains("Gmail"), "Карточка почты должна называть оба ящика")
         XCTAssertTrue(element(app, "smart.mail.trash").exists)
         XCTAssertTrue(element(app, "smart.mail.newsletters").exists)
 
         let clean = app.buttons["smart.clean"]
         XCTAssertTrue(clean.waitForExistence(timeout: 10), "Нет общей кнопки чистки")
-        XCTAssertTrue(clean.label.contains("7"), "Кнопка должна считать 7 писем: \(clean.label)")
+        XCTAssertTrue(clean.label.contains("11"), "Кнопка должна считать 11 писем: \(clean.label)")
         clean.tap()
         let confirm = app.buttons["smart.confirmClean"].firstMatch
         XCTAssertTrue(confirm.waitForExistence(timeout: 5))
         confirm.tap()
 
         let report = element(app, "smart.mailReport")
-        XCTAssertTrue(report.label.contains("Удалено писем: 7"), "Удалиться должны 7 писем: \(report.label)")
+        XCTAssertTrue(report.label.contains("Удалено писем: 11"), "Удалиться должны 11 писем: \(report.label)")
         XCTAssertFalse(app.descendants(matching: .any)["smart.mail.junk"].exists, "Спам должен уйти")
         XCTAssertFalse(app.buttons["smart.clean"].exists, "После чистки кнопке нечего чистить")
 
@@ -697,6 +1028,72 @@ final class SwipeCleanUITests: XCTestCase {
         assertRunning(app)
     }
 
+    // MARK: - Серия и напоминание
+
+    /// Серия на главной растёт после первой чистки за день, стопка хвалит за это,
+    /// а напоминание включается с главной, реально ставится в системе и после чистки переносится на завтра.
+    func testStreakGrowsAndReminderMovesToTomorrow() throws {
+        addUIInterruptionMonitor(withDescription: "Уведомления") { alert in
+            for label in Self.notificationLabels where alert.buttons[label].exists {
+                alert.buttons[label].firstMatch.tap()
+                return true
+            }
+            return false
+        }
+        let app = launch(extra: ["-seedStreak", "3"])
+        try requirePhotos(app)
+
+        // Три прошлых дня с чисткой, сегодня ещё не чистили: серия держится и просит не прерывать её.
+        app.tabBars.buttons["Главная"].tap()
+        let streak = element(app, "home.streak")
+        scrollTo(streak, in: app)
+        XCTAssertTrue(streak.label.contains("3 дня"), "Серия из трёх дней не видна: \(streak.label)")
+        XCTAssertTrue(streak.label.contains("не прервать"), streak.label)
+
+        // Напоминание включается прямо с главной. Системный запрос разрешения бывает только при первом прогоне.
+        let remind = element(app, "home.reminder")
+        scrollTo(remind, in: app)
+        XCTAssertTrue(remind.label.contains("Напоминать каждый день"), remind.label)
+        remind.tap()
+        tapSystemButton(app, Self.notificationLabels, timeout: 5)
+        XCTAssertTrue(waitForLabel(remind, containing: "Напоминание в"), "Напоминание не включилось: \(remind.label)")
+        attachScreenshot(app, "Серия и напоминание на главной")
+
+        // В настройках время и ближайшее напоминание из тех, что действительно стоят в системе.
+        app.tabBars.buttons["Настройки"].tap()
+        let toggle = app.switches["settings.reminder"]
+        XCTAssertTrue(toggle.waitForExistence(timeout: 5))
+        XCTAssertEqual(toggle.value as? String, "1")
+        XCTAssertTrue(element(app, "settings.reminderTime").exists)
+        let next = element(app, "settings.nextReminder")
+        scrollTo(next, in: app)
+        XCTAssertTrue(next.label.hasPrefix("Ближайшее"), next.label)
+
+        // Первая чистка за день: стопка хвалит, серия растёт до четырёх дней.
+        try openSource(app, "all")
+        app.buttons["deck.keep"].tap()
+        let toast = element(app, "deck.streak")
+        XCTAssertTrue(toast.label.contains("4 дня"), "Нет похвалы за серию: \(toast.label)")
+        attachScreenshot(app, "Похвала за серию в стопке")
+        app.navigationBars.buttons.firstMatch.tap()
+
+        app.tabBars.buttons["Главная"].tap()
+        scrollTo(streak, in: app)
+        XCTAssertTrue(waitForLabel(streak, containing: "4 дня"), streak.label)
+        XCTAssertTrue(streak.label.contains("Сегодня уже чистили"), streak.label)
+
+        // Сегодня уже чистили, поэтому сегодняшнее напоминание снято и ближайшее — завтра.
+        app.tabBars.buttons["Настройки"].tap()
+        let moved = element(app, "settings.nextReminder")
+        XCTAssertTrue(waitForLabel(moved, containing: "завтра"), "Напоминание не перенеслось на завтра: \(moved.label)")
+        attachScreenshot(app, "Напоминание в настройках")
+
+        // Выключение убирает выбор времени.
+        toggle.tap()
+        XCTAssertTrue(waitForDisappearance(app.descendants(matching: .any)["settings.reminderTime"]), "Время не скрылось после выключения")
+        assertRunning(app)
+    }
+
     // MARK: - Первый запуск
 
     func testOnboardingRequestsAccess() throws {
@@ -727,6 +1124,7 @@ final class SwipeCleanUITests: XCTestCase {
     ]
 
     private static let deleteLabels = ["Delete", "Удалить"]
+    private static let notificationLabels = ["Allow", "Разрешить"]
     private static let contactsAccessLabels = ["Allow Full Access", "Разрешить полный доступ", "Continue", "Продолжить", "OK", "Разрешить"]
     private static let calendarAccessLabels = ["Allow Full Access", "Разрешить полный доступ", "OK", "Разрешить"]
 
@@ -825,6 +1223,31 @@ final class SwipeCleanUITests: XCTestCase {
         return number * scale
     }
 
+    /// Число из сводки «Live Photos: N».
+    private func liveCount(_ app: XCUIApplication) -> Int? {
+        guard let match = element(app, "live.summary").label.firstMatch(of: /Live Photos: (\d+)/) else { return nil }
+        return Int(match.1)
+    }
+
+    /// Число фото с карточки памяти на главной, когда оно перестало меняться: главная пересчитывает его
+    /// после каждого изменения медиатеки.
+    private func stablePhotoCount(_ app: XCUIApplication) -> Int? {
+        func read() -> Int? {
+            let label = element(app, "home.storage").label.replacingOccurrences(of: "\u{00A0}", with: "")
+            guard let match = label.firstMatch(of: /(\d+) фото/) else { return nil }
+            return Int(match.1)
+        }
+        var last = read()
+        let deadline = Date().addingTimeInterval(15)
+        while Date() < deadline {
+            RunLoop.current.run(until: Date().addingTimeInterval(1.5))
+            let now = read()
+            if now != nil, now == last { return now }
+            last = now
+        }
+        return last
+    }
+
     /// Размеры первых клеток идут по убыванию или по возрастанию. Сетка пересобирается после закрытия меню,
     /// поэтому порядок проверяется несколько секунд, пока не совпадёт.
     private func assertSizes(_ items: XCUIElementQuery, descending: Bool, file: StaticString = #filePath, line: UInt = #line) {
@@ -861,6 +1284,12 @@ final class SwipeCleanUITests: XCTestCase {
         for _ in 0..<attempts where !(element.exists && element.isHittable) {
             app.swipeUp()
         }
+    }
+
+    /// Ждёт, пока подпись элемента не будет содержать текст (без учёта регистра).
+    private func waitForLabel(_ element: XCUIElement, containing text: String, timeout: TimeInterval = 10) -> Bool {
+        let predicate = NSPredicate(format: "label CONTAINS[c] %@", text)
+        return XCTWaiter().wait(for: [XCTNSPredicateExpectation(predicate: predicate, object: element)], timeout: timeout) == .completed
     }
 
     private func waitForDisappearance(_ element: XCUIElement, timeout: TimeInterval = 5) -> Bool {

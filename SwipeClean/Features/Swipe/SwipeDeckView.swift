@@ -6,6 +6,7 @@ struct SwipeDeckView: View {
     @State private var model: SwipeDeckViewModel
     @Environment(PhotoLibraryService.self) private var library
     @Environment(FullScreenPresenter.self) private var fullScreen
+    @Environment(ProtectedStore.self) private var protection
     @State private var offset: CGSize = .zero
     @State private var hapticTrigger = 0
     @AppStorage(SettingsKeys.hapticsEnabled) private var hapticsEnabled = true
@@ -46,6 +47,8 @@ struct SwipeDeckView: View {
         .navigationTitle(model.title)
         .navigationBarTitleDisplayMode(.inline)
         .onChange(of: library.changeCount) { _, _ in Task { await model.dropMissing() } }
+        // Фото защитили в полноэкранном просмотре: карточка уходит из стопки без решения.
+        .onChange(of: protection.policy) { _, policy in model.dropProtected(policy) }
         .sensoryFeedback(.impact(weight: .medium), trigger: hapticTrigger) { _, _ in hapticsEnabled }
         .sensoryFeedback(.success, trigger: model.milestoneCount) { _, _ in hapticsEnabled }
         .overlay(alignment: .top) {

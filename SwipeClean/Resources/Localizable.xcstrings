@@ -1,6 +1,16 @@
 {
   "sourceLanguage": "ru",
   "strings": {
+    "%@ · контактов: %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ · contacts: %lld"
+          }
+        }
+      }
+    },
     "%@ год": {
       "localizations": {
         "en": {
@@ -17,6 +27,76 @@
           "stringUnit": {
             "state": "translated",
             "value": "%@ of %@"
+          }
+        }
+      }
+    },
+    "%@ отклонил запрос: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ rejected the request: %2$@"
+          }
+        }
+      }
+    },
+    "%@ подключена": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ connected"
+          }
+        }
+      }
+    },
+    "%@ подряд": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ in a row"
+          }
+        }
+      }
+    },
+    "%@ слишком долго не отвечает. Попробуйте ещё раз.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ is taking too long to respond. Try again."
+          }
+        }
+      }
+    },
+    "%@ – %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ – %2$@"
+          }
+        }
+      }
+    },
+    "%@, по данным сервера": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@, according to the server"
+          }
+        }
+      }
+    },
+    "%@: занято %@ из %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@: %2$@ of %3$@ used"
           }
         }
       }
@@ -343,6 +423,16 @@
         }
       }
     },
+    "1. Включите двухэтапную аутентификацию": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1. Turn on 2-Step Verification"
+          }
+        }
+      }
+    },
     "1. Создайте пароль приложения": {
       "localizations": {
         "en": {
@@ -363,6 +453,16 @@
         }
       }
     },
+    "10 самых больших занимают %@, это %@ раздела": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The 10 largest take up %1$@, %2$@ of this section"
+          }
+        }
+      }
+    },
     "2. Скопируйте его": {
       "localizations": {
         "en": {
@@ -373,12 +473,32 @@
         }
       }
     },
+    "2. Создайте пароль приложения": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "2. Create an app password"
+          }
+        }
+      }
+    },
     "3. Вставьте его здесь один раз": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "3. Paste it here once"
+          }
+        }
+      }
+    },
+    "3. Скопируйте и вставьте сюда": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "3. Copy it and paste it here"
           }
         }
       }
@@ -403,6 +523,26 @@
         }
       }
     },
+    "Gmail не принял адрес или пароль. Нужен пароль приложения с myaccount.google.com/apppasswords, а не пароль от аккаунта Google; создать его можно только с включённой двухэтапной аутентификацией. В рабочем или учебном аккаунте IMAP и пароли приложений должен разрешить администратор.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gmail didn't accept the address or password. You need an app password from myaccount.google.com/apppasswords, not your Google Account password; it can only be created with 2-Step Verification turned on. For a work or school account, an administrator has to allow IMAP and app passwords."
+          }
+        }
+      }
+    },
+    "Google покажет 16 букв четырьмя группами. Пробелы убирать не нужно: приложение уберёт их само. После смены пароля Google пароль приложения перестаёт работать, тогда создайте новый.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Google shows 16 letters in four groups. No need to remove the spaces: the app does it for you. Changing your Google password revokes app passwords, so then create a new one."
+          }
+        }
+      }
+    },
     "Live": {
       "localizations": {
         "en": {
@@ -419,6 +559,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Live Photos"
+          }
+        }
+      }
+    },
+    "Live Photos нет": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No Live Photos"
+          }
+        }
+      }
+    },
+    "Live Photos: %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Live Photos: %lld"
           }
         }
       }
@@ -459,6 +619,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "iCloud Mail connected"
+          }
+        }
+      }
+    },
+    "iCloud и Gmail": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iCloud and Gmail"
           }
         }
       }
@@ -509,6 +679,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "iOS, other apps, their data and caches"
+          }
+        }
+      }
+    },
+    "«Выбрать все» отметит только эту группу. Нажмите на неё ещё раз, чтобы показать все.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select All will mark only this group. Tap it again to show everything."
+          }
+        }
+      }
+    },
+    "Адрес %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ address"
           }
         }
       }
@@ -603,6 +793,16 @@
         }
       }
     },
+    "Без неё Google не даёт создать пароль приложения: myaccount.google.com → «Безопасность» → «Двухэтапная аутентификация». Если она уже включена, переходите к шагу 2.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Google won't create an app password without it: myaccount.google.com → Security → 2-Step Verification. If it's already on, go to step 2."
+          }
+        }
+      }
+    },
     "Без номера (%lld)": {
       "localizations": {
         "en": {
@@ -619,6 +819,36 @@
           "stringUnit": {
             "state": "translated",
             "value": "No subject"
+          }
+        }
+      }
+    },
+    "Ближайшее: %@ — «%@». В дни, когда вы уже чистили, напоминание не приходит.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Next: %1$@ — “%2$@”. It's skipped on days you've already cleaned up."
+          }
+        }
+      }
+    },
+    "Больше места": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Largest size"
+          }
+        }
+      }
+    },
+    "Больше писем": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Most emails"
           }
         }
       }
@@ -653,6 +883,16 @@
         }
       }
     },
+    "В адресной книге нет контактов, копировать нечего.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "There are no contacts to back up."
+          }
+        }
+      }
+    },
     "В избранное": {
       "localizations": {
         "en": {
@@ -673,6 +913,16 @@
         }
       }
     },
+    "В каждой группе останется самый полный контакт, к нему добавятся номера, почта и адреса остальных. Перед объединением сохранится резервная копия.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Each group keeps its most complete contact, with the numbers, emails and addresses of the others added to it. A backup is saved before merging."
+          }
+        }
+      }
+    },
     "В корзину": {
       "localizations": {
         "en": {
@@ -689,6 +939,36 @@
           "stringUnit": {
             "state": "translated",
             "value": "Trash (%lld)"
+          }
+        }
+      }
+    },
+    "В корзину перенесено писем: %lld · %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Moved to Trash: %1$lld emails · %2$@"
+          }
+        }
+      }
+    },
+    "В корзину почты (%@), откуда их можно вернуть: %lld. Место освободится после очистки корзины.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "To the mail Trash (%1$@), where they can be recovered: %2$lld. Space is freed once the Trash is emptied."
+          }
+        }
+      }
+    },
+    "В корзину: %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Move to Trash: %lld"
           }
         }
       }
@@ -733,6 +1013,16 @@
         }
       }
     },
+    "В списке: %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In the list: %lld"
+          }
+        }
+      }
+    },
     "В этой категории не осталось групп.": {
       "localizations": {
         "en": {
@@ -749,6 +1039,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "On this day"
+          }
+        }
+      }
+    },
+    "В этот день: %lld фото": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "On this day: %lld photo"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "On this day: %lld photos"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "В ящике нет корзины, некуда переносить письма.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The mailbox has no Trash folder to move emails to."
           }
         }
       }
@@ -789,6 +1111,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Up"
+          }
+        }
+      }
+    },
+    "Вернутся контакты из копии, которых сейчас нет в адресной книге. Остальные не изменятся.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Contacts from the backup that are missing from your address book come back. Others stay unchanged."
           }
         }
       }
@@ -843,6 +1175,16 @@
         }
       }
     },
+    "Вернуть контакты из копии?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restore Contacts from Backup?"
+          }
+        }
+      }
+    },
     "Вернуть последнее": {
       "localizations": {
         "en": {
@@ -889,6 +1231,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Video %@"
+          }
+        }
+      }
+    },
+    "Видео в них ≈ %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Video inside ≈ %@"
           }
         }
       }
@@ -943,6 +1295,26 @@
         }
       }
     },
+    "Восстановить": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restore"
+          }
+        }
+      }
+    },
+    "Восстановлено": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restored"
+          }
+        }
+      }
+    },
     "Вправо": {
       "localizations": {
         "en": {
@@ -953,12 +1325,32 @@
         }
       }
     },
+    "Время": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Time"
+          }
+        }
+      }
+    },
     "Все категории ищут только среди фото и видео, снятых в выбранный период.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Every category only looks at photos and videos taken in the selected period."
+          }
+        }
+      }
+    },
+    "Все контакты": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All Contacts"
           }
         }
       }
@@ -993,12 +1385,52 @@
         }
       }
     },
+    "Все фото уже в списке «Не трогать».": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All photos are already in the Don't touch list."
+          }
+        }
+      }
+    },
+    "Все фото уже обычные: превращать нечего.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All photos are already stills: nothing to convert."
+          }
+        }
+      }
+    },
+    "Вспомните, как это было, и уберите лишнее за пару минут.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Relive the moment and clear out the extras in a couple of minutes."
+          }
+        }
+      }
+    },
     "Всё время": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "All time"
+          }
+        }
+      }
+    },
+    "Всё от ненужного отправителя — разом": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Everything from an unwanted sender at once"
           }
         }
       }
@@ -1019,6 +1451,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Everything you delete goes to the app's trash first. Review it and delete with a single confirmation."
+          }
+        }
+      }
+    },
+    "Всё, что отмечено сердечком в «Фото»": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Everything marked with a heart in Photos"
           }
         }
       }
@@ -1073,6 +1515,16 @@
         }
       }
     },
+    "Выбрано: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Selected: %@"
+          }
+        }
+      }
+    },
     "Выбрать": {
       "localizations": {
         "en": {
@@ -1123,6 +1575,16 @@
         }
       }
     },
+    "Галерея ждёт": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your gallery is waiting"
+          }
+        }
+      }
+    },
     "Главная": {
       "localizations": {
         "en": {
@@ -1143,12 +1605,32 @@
         }
       }
     },
+    "Готовлю фото %lld из %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preparing photo %1$lld of %2$lld"
+          }
+        }
+      }
+    },
     "Готово": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Done"
+          }
+        }
+      }
+    },
+    "Готово %lld из %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Done %lld of %lld"
           }
         }
       }
@@ -1189,6 +1671,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Keep holding to open full screen"
+          }
+        }
+      }
+    },
+    "Для новых фото нужно %@, свободно %@. Выберите меньше фото или очистите «Недавно удалённые» в «Фото».": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The new photos need %1$@, only %2$@ is free. Select fewer photos or empty Recently Deleted in Photos."
           }
         }
       }
@@ -1243,6 +1735,26 @@
         }
       }
     },
+    "Добавить": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add"
+          }
+        }
+      }
+    },
+    "Добавить %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add %@"
+          }
+        }
+      }
+    },
     "Добавить (%lld)": {
       "localizations": {
         "en": {
@@ -1263,12 +1775,32 @@
         }
       }
     },
+    "Добавить фото": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add photos"
+          }
+        }
+      }
+    },
     "Добавьте фото и видео из медиатеки. Их можно вернуть в «Фото» в любой момент.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Add photos and videos from your library. You can restore them to Photos at any time."
+          }
+        }
+      }
+    },
+    "Добавьте фото и видео, которые жалко потерять. Ещё фото можно защитить кнопкой «Не трогать», открыв его на весь экран.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add photos and videos you don't want to lose. You can also protect a photo with the Don't touch button in full-screen view."
           }
         }
       }
@@ -1339,6 +1871,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Duplicate videos"
+          }
+        }
+      }
+    },
+    "Ежедневное напоминание": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Daily reminder"
           }
         }
       }
@@ -1453,6 +1995,16 @@
         }
       }
     },
+    "Заметки контактов iOS не отдаёт приложениям, поэтому в копию они не попадают. Копии хранятся на iPhone; чтобы не потерять их вместе с приложением, сохраните файл .vcf в «Файлы».": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iOS doesn't give apps access to contact notes, so notes aren't included. Backups are stored on this iPhone; to keep them if you delete the app, save the .vcf file to Files."
+          }
+        }
+      }
+    },
     "Занято": {
       "localizations": {
         "en": {
@@ -1469,6 +2021,36 @@
           "stringUnit": {
             "state": "translated",
             "value": "Used %@ of %@"
+          }
+        }
+      }
+    },
+    "Защищено": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Protected"
+          }
+        }
+      }
+    },
+    "Защищённое фото не попадёт в разбор, умную чистку и сжатие": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A protected photo stays out of review, Smart Clean and compression"
+          }
+        }
+      }
+    },
+    "Защищённые фото": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Protected photos"
           }
         }
       }
@@ -1503,12 +2085,42 @@
         }
       }
     },
+    "Избранное не трогаю": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Favorite: protected"
+          }
+        }
+      }
+    },
+    "Избранное тоже не трогать": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Protect Favorites too"
+          }
+        }
+      }
+    },
     "Изменить": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Edit"
+          }
+        }
+      }
+    },
+    "Имя или адрес": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Name or address"
           }
         }
       }
@@ -1529,6 +2141,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Original resolution, nearly lossless"
+          }
+        }
+      }
+    },
+    "Их можно вернуть в почте, пока корзина не очищена. Место освободится после её очистки.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You can restore them in your mailbox until Trash is emptied. Space is freed once Trash is emptied."
+          }
+        }
+      }
+    },
+    "Ищу Live Photos…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Looking for Live Photos…"
           }
         }
       }
@@ -1573,12 +2205,42 @@
         }
       }
     },
+    "Каждое Live Photo хранит рядом со снимком 3 секунды видео. Останется только снимок в исходном качестве — с датой, местом, избранным и альбомами. На превью — сколько освободится.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Every Live Photo keeps 3 seconds of video next to the still. Only the still stays, in original quality, with its date, location, favorite and albums. Each thumbnail shows how much space it frees."
+          }
+        }
+      }
+    },
+    "Каждый свайп влево — минус лишний кадр в галерее.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Every swipe left means one less extra shot in your gallery."
+          }
+        }
+      }
+    },
     "Как в системе": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "System"
+          }
+        }
+      }
+    },
+    "Как и в Фото, они открываются после Face ID или код-пароля.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "As in Photos, they open after Face ID or your passcode."
           }
         }
       }
@@ -1623,6 +2285,26 @@
         }
       }
     },
+    "Кнопка ниже откроет account.apple.com: «Вход и безопасность» → «Пароли приложений» → «+». Это не пароль Apple ID: он работает только для почты и отзывается в любой момент. Нужна двухфакторная аутентификация Apple ID.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The button below opens account.apple.com: Sign-In and Security → App-Specific Passwords → +. It isn't your Apple ID password: it only works for mail and can be revoked at any time. Your Apple ID needs two-factor authentication."
+          }
+        }
+      }
+    },
+    "Кнопка ниже откроет myaccount.google.com/apppasswords. Введите любое название, например SwipeClean, и нажмите «Создать». Это не пароль Google: он работает только для почты и отзывается в любой момент.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The button below opens myaccount.google.com/apppasswords. Enter any name, for example SwipeClean, and tap Create. It isn't your Google password: it only works for mail and can be revoked at any time."
+          }
+        }
+      }
+    },
     "Коды не совпали, попробуйте ещё раз.": {
       "localizations": {
         "en": {
@@ -1653,12 +2335,32 @@
         }
       }
     },
+    "Контакты объединены": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Contacts Merged"
+          }
+        }
+      }
+    },
     "Контакты с одинаковыми именами, номерами или почтой не найдены.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "No contacts share a name, number or email."
+          }
+        }
+      }
+    },
+    "Контакты удалены": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Contacts Deleted"
           }
         }
       }
@@ -1673,6 +2375,16 @@
         }
       }
     },
+    "Копий пока нет": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No Backups Yet"
+          }
+        }
+      }
+    },
     "Копий фото и видео в корзину приложения: %lld, в каждой группе останется лучший экземпляр.": {
       "localizations": {
         "en": {
@@ -1683,12 +2395,52 @@
         }
       }
     },
+    "Копий: %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Backups: %lld"
+          }
+        }
+      }
+    },
     "Копирую…": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Copying…"
+          }
+        }
+      }
+    },
+    "Копия не совпадает со своим описанием. Откройте файл .vcf в «Контактах», чтобы вернуть контакты вручную.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The backup doesn't match its description. Open the .vcf file in Contacts to restore the contacts manually."
+          }
+        }
+      }
+    },
+    "Копия появится при первом объединении или удалении контактов.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A backup appears the first time you merge or delete contacts."
+          }
+        }
+      }
+    },
+    "Копия сохранена в «Резервных копиях»": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A backup was saved to Backups"
           }
         }
       }
@@ -1793,6 +2545,46 @@
         }
       }
     },
+    "Лучший": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Best"
+          }
+        }
+      }
+    },
+    "Лучший кадр": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Best shot"
+          }
+        }
+      }
+    },
+    "Лучший кадр каждой серии оставит умная чистка": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Smart Clean keeps the best shot of each burst"
+          }
+        }
+      }
+    },
+    "Лучший по лицам: открытые глаза и чёткость": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Best by faces: open eyes and sharpness"
+          }
+        }
+      }
+    },
     "Лучший стрик": {
       "localizations": {
         "en": {
@@ -1803,12 +2595,62 @@
         }
       }
     },
+    "Лучший — вы отметили его в серии": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Best: you picked it in the burst"
+          }
+        }
+      }
+    },
+    "Лучший — выбор камеры для серии": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Best: the camera's pick for the burst"
+          }
+        }
+      }
+    },
+    "Лучший — из избранного": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Best: it's a favorite"
+          }
+        }
+      }
+    },
+    "Лучший — самый резкий кадр": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Best: the sharpest shot"
+          }
+        }
+      }
+    },
     "Медиатека": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Library"
+          }
+        }
+      }
+    },
+    "Меньше %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Under %@"
           }
         }
       }
@@ -1849,6 +2691,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Tap a month, then the last month of the range"
+          }
+        }
+      }
+    },
+    "Нажмите на группу, чтобы оставить в сетке только её.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap a group to keep only it in the grid."
           }
         }
       }
@@ -1903,6 +2755,36 @@
         }
       }
     },
+    "Напоминание": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reminder"
+          }
+        }
+      }
+    },
+    "Напоминание в %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reminder at %@"
+          }
+        }
+      }
+    },
+    "Напоминать каждый день": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remind me every day"
+          }
+        }
+      }
+    },
     "Настройки": {
       "localizations": {
         "en": {
@@ -1933,12 +2815,42 @@
         }
       }
     },
+    "Начните сегодня": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start today"
+          }
+        }
+      }
+    },
+    "Начните серию: разберите хотя бы одно фото сегодня.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start a streak: sort at least one photo today."
+          }
+        }
+      }
+    },
     "Не выбрано": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Not selected"
+          }
+        }
+      }
+    },
+    "Не защищено": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not protected"
           }
         }
       }
@@ -1973,6 +2885,26 @@
         }
       }
     },
+    "Не трогать": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Don't touch"
+          }
+        }
+      }
+    },
+    "Не трогаю": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Protected"
+          }
+        }
+      }
+    },
     "Не удалось загрузить фото": {
       "localizations": {
         "en": {
@@ -2003,6 +2935,16 @@
         }
       }
     },
+    "Не удалось подключиться к %@. Проверьте интернет и попробуйте ещё раз.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn't connect to %@. Check your internet connection and try again."
+          }
+        }
+      }
+    },
     "Не удалось подключиться к iCloud. Проверьте интернет и попробуйте ещё раз.": {
       "localizations": {
         "en": {
@@ -2023,6 +2965,16 @@
         }
       }
     },
+    "Не удалось сохранить резервную копию, поэтому контакты не тронуты. %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn't save a backup, so your contacts were left untouched. %@"
+          }
+        }
+      }
+    },
     "Не удалось удалить": {
       "localizations": {
         "en": {
@@ -2039,6 +2991,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Couldn't read storage size"
+          }
+        }
+      }
+    },
+    "Не хватает места": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not enough space"
           }
         }
       }
@@ -2083,12 +3045,32 @@
         }
       }
     },
+    "Нечего добавить": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nothing to add"
+          }
+        }
+      }
+    },
     "Низкое": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Low"
+          }
+        }
+      }
+    },
+    "Ничего не изменилось": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nothing changed"
           }
         }
       }
@@ -2193,6 +3175,16 @@
         }
       }
     },
+    "Оригиналы уйдут в «Недавно удалённые» одним подтверждением": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Originals go to Recently Deleted after one confirmation"
+          }
+        }
+      }
+    },
     "Оригиналы фото и видео больше, чем занято на iPhone: часть из них хранится только в iCloud (включена «Оптимизация хранилища»).": {
       "localizations": {
         "en": {
@@ -2203,12 +3195,32 @@
         }
       }
     },
+    "Освободите немного места": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Free up some space"
+          }
+        }
+      }
+    },
     "Освободится %@": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "%@ will be freed"
+          }
+        }
+      }
+    },
+    "Освободится ≈ %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Frees ≈ %@"
           }
         }
       }
@@ -2293,6 +3305,26 @@
         }
       }
     },
+    "Оставить только фото (%lld)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep only the photo (%lld)"
+          }
+        }
+      }
+    },
+    "Оставить только фото, без видео": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep only the photo, without video"
+          }
+        }
+      }
+    },
     "Оставлено": {
       "localizations": {
         "en": {
@@ -2313,12 +3345,42 @@
         }
       }
     },
+    "Остальные отменены и остались Live Photos.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The rest were cancelled and stay Live Photos."
+          }
+        }
+      }
+    },
     "Останется": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Stays"
+          }
+        }
+      }
+    },
+    "Остановлено: не хватило свободного места для следующих фото.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stopped: not enough free space for the next photos."
+          }
+        }
+      }
+    },
+    "От %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ and up"
           }
         }
       }
@@ -2339,6 +3401,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Disconnect"
+          }
+        }
+      }
+    },
+    "Отключить %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Disconnect %@"
+          }
+        }
+      }
+    },
+    "Отключить %@?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Disconnect %@?"
           }
         }
       }
@@ -2439,6 +3521,76 @@
           "stringUnit": {
             "state": "translated",
             "value": "Cancel"
+          }
+        }
+      }
+    },
+    "Отменено, ничего не изменилось": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancelled, nothing changed"
+          }
+        }
+      }
+    },
+    "Отменить": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Undo"
+          }
+        }
+      }
+    },
+    "Отметьте ненужных отправителей, чтобы убрать всё от них разом, или откройте отправителя и посмотрите письма.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select unwanted senders to remove everything from them at once, or open a sender to see the emails."
+          }
+        }
+      }
+    },
+    "Отметьте, что убрать": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select what to remove"
+          }
+        }
+      }
+    },
+    "Отправителей: %lld · писем: %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Senders: %lld · emails: %lld"
+          }
+        }
+      }
+    },
+    "Отправителей: %lld, писем: %lld, %@.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Senders: %lld, emails: %lld, %@."
+          }
+        }
+      }
+    },
+    "Отправители": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Senders"
           }
         }
       }
@@ -2563,6 +3715,16 @@
         }
       }
     },
+    "Папка «Удалённые» (в Gmail — «Корзина») целиком": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The whole Deleted Messages folder (Trash in Gmail)"
+          }
+        }
+      }
+    },
     "Папка «Удалённые» целиком": {
       "localizations": {
         "en": {
@@ -2593,6 +3755,26 @@
         }
       }
     },
+    "Пара минут на чистку": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A couple of minutes to tidy up"
+          }
+        }
+      }
+    },
+    "Пароль отправляется только на %@ по защищённому соединению и хранится в связке ключей этого iPhone. Отозвать его можно в любой момент на %@.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The password is sent only to %1$@ over a secure connection and is stored in this iPhone's keychain. You can revoke it at any time at %2$@."
+          }
+        }
+      }
+    },
     "Пароль отправляется только на imap.mail.me.com по защищённому соединению и хранится в связке ключей этого iPhone. Отозвать его можно в любой момент на account.apple.com.": {
       "localizations": {
         "en": {
@@ -2609,6 +3791,36 @@
           "stringUnit": {
             "state": "translated",
             "value": "App-specific password"
+          }
+        }
+      }
+    },
+    "Пароль приложения с account.apple.com, создаётся за минуту": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App password from account.apple.com, takes a minute to create"
+          }
+        }
+      }
+    },
+    "Пароль приложения с myaccount.google.com, нужна двухэтапная аутентификация": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App password from myaccount.google.com, requires 2-Step Verification"
+          }
+        }
+      }
+    },
+    "Пароль приложения удалится из связки ключей iPhone. Отозвать его совсем можно на %@.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The app password will be removed from the iPhone keychain. To revoke it completely, go to %@."
           }
         }
       }
@@ -2633,12 +3845,92 @@
         }
       }
     },
-    "Переедут в «Удалённые»": {
+    "Пароль хранится в связке ключей iPhone. Письма не открываются: приложение видит лишь отправителя, тему, дату и размер.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Will move to Trash"
+            "value": "The password is stored in the iPhone keychain. Emails are never opened: the app only sees the sender, subject, date and size."
+          }
+        }
+      }
+    },
+    "Перед каждым объединением и удалением контакты сохраняются в файл vCard.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Before every merge and delete, the contacts are saved to a vCard file."
+          }
+        }
+      }
+    },
+    "Перед объединением": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Before Merge"
+          }
+        }
+      }
+    },
+    "Перед удалением": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Before Delete"
+          }
+        }
+      }
+    },
+    "Перед удалением сохранится резервная копия: удалённые контакты можно будет вернуть.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A backup is saved before deleting, so you can bring the contacts back."
+          }
+        }
+      }
+    },
+    "Переедут в корзину почты": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Will move to the mail Trash"
+          }
+        }
+      }
+    },
+    "Перенести (%lld)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Move (%lld)"
+          }
+        }
+      }
+    },
+    "Перенести в корзину?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Move to Trash?"
+          }
+        }
+      }
+    },
+    "Переношу в корзину": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Moving to Trash"
           }
         }
       }
@@ -2673,6 +3965,16 @@
         }
       }
     },
+    "Писем навсегда из «Спама» и «Удалённых»: %lld, в корзину почты: %lld.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Emails deleted for good from Junk and Deleted Messages: %1$lld, moved to the mail Trash: %2$lld."
+          }
+        }
+      }
+    },
     "Писем не осталось": {
       "localizations": {
         "en": {
@@ -2699,6 +4001,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Emails: %lld · %@"
+          }
+        }
+      }
+    },
+    "Писем: %lld, %@.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Emails: %lld, %@."
           }
         }
       }
@@ -2753,12 +4065,42 @@
         }
       }
     },
+    "По имени": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "By name"
+          }
+        }
+      }
+    },
     "По неделям": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "By week"
+          }
+        }
+      }
+    },
+    "По отправителям": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "By sender"
+          }
+        }
+      }
+    },
+    "По размеру": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "By size"
           }
         }
       }
@@ -2823,6 +4165,26 @@
         }
       }
     },
+    "Подключаюсь к почте…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connecting to mail…"
+          }
+        }
+      }
+    },
+    "Подключите iCloud Mail или Gmail, чтобы умная чистка убирала спам и рассылки": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connect iCloud Mail or Gmail so Smart Clean can remove spam and newsletters"
+          }
+        }
+      }
+    },
     "Подключите почту, чтобы увидеть, сколько она занимает, и убрать спам и рассылки.": {
       "localizations": {
         "en": {
@@ -2853,6 +4215,16 @@
         }
       }
     },
+    "Подключить %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connect %@"
+          }
+        }
+      }
+    },
     "Подключить iCloud Mail": {
       "localizations": {
         "en": {
@@ -2873,12 +4245,32 @@
         }
       }
     },
+    "Подтвердите удаление оригиналов в системном окне": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Confirm deleting the originals in the system dialog"
+          }
+        }
+      }
+    },
     "Позже": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Later"
+          }
+        }
+      }
+    },
+    "Показать скрытые фото и видео": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show hidden photos and videos"
           }
         }
       }
@@ -2893,12 +4285,32 @@
         }
       }
     },
+    "Понятно": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OK"
+          }
+        }
+      }
+    },
     "Портреты": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Portraits"
+          }
+        }
+      }
+    },
+    "Последняя: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Latest: %@"
           }
         }
       }
@@ -2919,6 +4331,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Similar shots, duplicates, blurry photos and old screenshots, found and grouped."
+          }
+        }
+      }
+    },
+    "Почта": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mail"
           }
         }
       }
@@ -2949,6 +4371,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Mail uses %@ of %@"
+          }
+        }
+      }
+    },
+    "Почта, точные копии, похожие, размытые и скриншоты": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mail, exact copies, similar, blurry and screenshots"
           }
         }
       }
@@ -3155,6 +4587,26 @@
         }
       }
     },
+    "Проверю почту и найду точные копии фото и видео, похожие кадры, серии, размытые фото и старые скриншоты. Тяжёлые видео только покажу: удалять их или нет, решаете вы. Фото анализируются только на устройстве.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "I'll check your mail and find exact copies of photos and videos, similar shots, bursts, blurry photos and old screenshots. Large videos are only shown: you decide whether to delete them. Photos are analyzed only on the device."
+          }
+        }
+      }
+    },
+    "Проверю спам, корзину и «Входящие» за выбранный период и разложу лишнее по категориям.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "I'll check Spam, Trash and Inbox for the selected period and sort the clutter into categories."
+          }
+        }
+      }
+    },
     "Проверяю письма…": {
       "localizations": {
         "en": {
@@ -3221,6 +4673,36 @@
           "stringUnit": {
             "state": "translated",
             "value": "Empty"
+          }
+        }
+      }
+    },
+    "Раз в день в выбранное время: воспоминания «В этот день» и ваша серия. В дни, когда вы уже чистили, не приходит.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Once a day at the time you choose: On This Day memories and your streak. Skipped on days you've already cleaned up."
+          }
+        }
+      }
+    },
+    "Разберите хотя бы одно фото сегодня, чтобы не прервать серию.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sort at least one photo today to keep your streak."
+          }
+        }
+      }
+    },
+    "Разбирайте хотя бы одно фото в день, и серия начнёт расти.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sort at least one photo a day and your streak will grow."
           }
         }
       }
@@ -3305,12 +4787,42 @@
         }
       }
     },
+    "Разрешите уведомления для SwipeClean в Настройках iOS, чтобы получать напоминание.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allow notifications for SwipeClean in iOS Settings to get the reminder."
+          }
+        }
+      }
+    },
     "Разрешить доступ": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Allow access"
+          }
+        }
+      }
+    },
+    "Разрешить уведомления в Настройках": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allow notifications in Settings"
+          }
+        }
+      }
+    },
+    "Рассылка": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Newsletter"
           }
         }
       }
@@ -3331,6 +4843,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Mode"
+          }
+        }
+      }
+    },
+    "Резервные копии": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Backups"
+          }
+        }
+      }
+    },
+    "Рекорд": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Best"
           }
         }
       }
@@ -3425,6 +4957,16 @@
         }
       }
     },
+    "Свайпните несколько фото: влево — удалить, вправо — оставить.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Swipe a few photos: left to delete, right to keep."
+          }
+        }
+      }
+    },
     "Свайпните фото влево, и оно попадёт сюда.": {
       "localizations": {
         "en": {
@@ -3461,6 +5003,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "%@ free"
+          }
+        }
+      }
+    },
+    "Сегодня уже чистили — так держать!": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You've cleaned up today — keep it up!"
+          }
+        }
+      }
+    },
+    "Сейчас в избранном: %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Favorites now: %lld"
           }
         }
       }
@@ -3525,12 +5087,72 @@
         }
       }
     },
+    "Серия": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Streak"
+          }
+        }
+      }
+    },
+    "Серия %@ — разберите пару фото сегодня, чтобы её не прервать.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Streak: %@. Sort a couple of photos today to keep it going."
+          }
+        }
+      }
+    },
+    "Серия %@ 🔥": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Streak: %@ 🔥"
+          }
+        }
+      }
+    },
+    "Серия началась": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Streak started"
+          }
+        }
+      }
+    },
+    "Серия продлена": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Streak extended"
+          }
+        }
+      }
+    },
     "Сжатие": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Compression"
+          }
+        }
+      }
+    },
+    "Сжатие фото и видео, секретная папка с PIN-кодом, чистка контактов, календаря и почты iCloud и Gmail от спама.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Photo and video compression, a PIN-protected secret folder, cleanup of contacts, calendar and iCloud and Gmail spam."
           }
         }
       }
@@ -3625,6 +5247,26 @@
         }
       }
     },
+    "Скрытые закрыты": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hidden items are locked"
+          }
+        }
+      }
+    },
+    "Скрыть": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hide"
+          }
+        }
+      }
+    },
     "Следующие годы": {
       "localizations": {
         "en": {
@@ -3685,6 +5327,16 @@
         }
       }
     },
+    "Сначала недавние": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Most recent first"
+          }
+        }
+      }
+    },
     "Сначала новые": {
       "localizations": {
         "en": {
@@ -3725,12 +5377,42 @@
         }
       }
     },
+    "Снять защиту": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unprotect"
+          }
+        }
+      }
+    },
+    "Снять защиту (%lld)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unprotect (%lld)"
+          }
+        }
+      }
+    },
     "События удалятся на всех устройствах с этим календарём. «Недавно удалённых» у календаря нет.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "The events will be deleted on every device with this calendar. Calendar has no Recently Deleted."
+          }
+        }
+      }
+    },
+    "Соединение с %@ прервалось.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The connection to %@ was lost."
           }
         }
       }
@@ -3775,6 +5457,36 @@
         }
       }
     },
+    "Сохранить копию всех контактов": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Back Up All Contacts"
+          }
+        }
+      }
+    },
+    "Сохранить файл .vcf": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save .vcf File"
+          }
+        }
+      }
+    },
+    "Сохраняются перед объединением и удалением": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saved before every merge and delete"
+          }
+        }
+      }
+    },
     "Спам": {
       "localizations": {
         "en": {
@@ -3805,12 +5517,32 @@
         }
       }
     },
+    "Список пуст": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The list is empty"
+          }
+        }
+      }
+    },
     "Среднее": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Medium"
+          }
+        }
+      }
+    },
+    "Стали обычными фото: %lld. Оригиналы 30 дней лежат в «Недавно удалённых»: очистите их в «Фото», чтобы место освободилось сразу.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Converted to stills: %lld. The originals stay in Recently Deleted for 30 days: empty it in Photos to free the space right away."
           }
         }
       }
@@ -4105,6 +5837,36 @@
         }
       }
     },
+    "Убрать видео, оставить фото": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Drop video, keep photo"
+          }
+        }
+      }
+    },
+    "Уведомления выключены": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Notifications are off"
+          }
+        }
+      }
+    },
+    "Уведомления для SwipeClean выключены в Настройках iOS, поэтому напоминание не придёт.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Notifications for SwipeClean are off in iOS Settings, so the reminder won't arrive."
+          }
+        }
+      }
+    },
     "Удалено": {
       "localizations": {
         "en": {
@@ -4215,6 +5977,16 @@
         }
       }
     },
+    "Удалить копию": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete Backup"
+          }
+        }
+      }
+    },
     "Удалить оригиналы из «Фото»?": {
       "localizations": {
         "en": {
@@ -4261,6 +6033,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Trash"
+          }
+        }
+      }
+    },
+    "Удалённые контакты вернутся в адресную книгу.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deleted contacts return to your address book."
+          }
+        }
+      }
+    },
+    "Удалённые при объединении контакты вернутся, а основной контакт станет таким, каким был до объединения.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Contacts removed by the merge come back, and the main contact returns to how it was before the merge."
           }
         }
       }
@@ -4335,6 +6127,16 @@
         }
       }
     },
+    "Файл копии не читается.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The backup file can't be read."
+          }
+        }
+      }
+    },
     "Файл с решениями был повреждён, поэтому начали заново. Фото в медиатеке не тронуты.": {
       "localizations": {
         "en": {
@@ -4361,6 +6163,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Files from the secret folder don't go to Recently Deleted."
+          }
+        }
+      }
+    },
+    "Файлы по размеру: посмотреть и удалить": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Files by size: view and delete"
           }
         }
       }
@@ -4465,6 +6277,16 @@
         }
       }
     },
+    "Хранится на сервере почты, а не в памяти iPhone": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stored on the mail server, not on the iPhone"
+          }
+        }
+      }
+    },
     "Хранятся только на этом iPhone и не попадают в iCloud.": {
       "localizations": {
         "en": {
@@ -4485,12 +6307,42 @@
         }
       }
     },
+    "Чистить оба ящика одной кнопкой": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clean both mailboxes with one tap"
+          }
+        }
+      }
+    },
+    "Что не трогать": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What to protect"
+          }
+        }
+      }
+    },
     "Что сжимать": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "What to Compress"
+          }
+        }
+      }
+    },
+    "Эти фото и видео не попадут в разбор, умную чистку, разделы памяти и сжатие, а удаление их пропустит.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "These photos and videos stay out of review, Smart Clean, storage sections and compression, and deletion always skips them."
           }
         }
       }

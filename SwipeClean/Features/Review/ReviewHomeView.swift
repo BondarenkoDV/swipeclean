@@ -5,7 +5,12 @@ import SwiftUI
 struct ReviewHomeView: View {
     @Environment(ReviewStore.self) private var store
     @Environment(PhotoLibraryService.self) private var library
+    @Environment(ProtectedStore.self) private var protection
+    @Environment(TabRouter.self) private var router
+    @State private var path: [LibrarySource] = []
     @State private var months: [MonthBucket] = []
+    /// Избранное медиатеки: при включённой защите избранного оно не попадает в разбор и считается разобранным.
+    @State private var favoriteIDs: Set<String> = []
     @State private var isLoading = true
     /// Снимок прогресса по месяцам. Считается при появлении экрана, а не на каждый свайп в открытой стопке.
     @State private var reviewed: [MonthBucket.ID: Int] = [:]
@@ -13,7 +18,7 @@ struct ReviewHomeView: View {
     private let columns = [GridItem(.adaptive(minimum: 150), spacing: 12)]
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
                     LazyVGrid(columns: columns, spacing: 12) {
@@ -41,6 +46,13 @@ struct ReviewHomeView: View {
             }
             .refreshable { await loadMonths() }
             .onAppear(perform: refreshProgress)
+            .onChange(of: protection.policy) { _, _ in refreshProgress() }
+        }
+        // Нажатие на напоминание «В этот день» сразу открывает эту подборку.
+        .onChange(of: router.reviewSource, initial: true) { _, source in
+            guard let source else { return }
+            path = [source]
+            router.reviewSource = nil
         }
         .task(id: library.changeCount) { await loadMonths() }
     }
@@ -63,16 +75,24 @@ struct ReviewHomeView: View {
         }
     }
 
+    /// Защищённые фото в разбор не попадают, поэтому месяц с ними тоже доходит до конца.
     private func refreshProgress() {
         let ids = store.reviewedIDs
+        let policy = protection.policy
+        let favorites = policy.includesFavorites ? favoriteIDs : []
         reviewed = Dictionary(uniqueKeysWithValues: months.map { bucket in
-            (bucket.id, bucket.assetIDs.reduce(0) { $0 + (ids.contains($1) ? 1 : 0) })
+            (bucket.id, bucket.assetIDs.reduce(0) { count, id in
+                count + (ids.contains(id) || policy.ids.contains(id) || favorites.contains(id) ? 1 : 0)
+            })
         })
     }
 
     private func loadMonths() async {
-        let result = await Task.detached(priority: .userInitiated) { LibraryFetcher.months() }.value
+        let (result, favorites) = await Task.detached(priority: .userInitiated) {
+            (LibraryFetcher.months(), ProtectionPolicy.favoriteIDs())
+        }.value
         months = result
+        favoriteIDs = favorites
         refreshProgress()
         isLoading = false
     }

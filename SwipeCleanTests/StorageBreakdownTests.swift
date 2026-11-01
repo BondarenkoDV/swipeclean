@@ -68,6 +68,44 @@ final class StorageBreakdownTests: XCTestCase {
         XCTAssertLessThanOrEqual(breakdown.fraction(breakdown.mediaOnDevice + breakdown.app + breakdown.other), breakdown.fraction(device.used) + 1e-9)
     }
 
+    /// Группы по размеру покрывают любой размер ровно один раз: границы входят в более тяжёлую группу.
+    func testSizeBucketsCoverEverySizeOnce() {
+        for isVideo in [true, false] {
+            let buckets = SizeBucket.buckets(isVideo: isVideo)
+            XCTAssertEqual(buckets.first?.upper, nil, "Самая тяжёлая группа без верхней границы")
+            XCTAssertEqual(buckets.last?.lower, 0)
+            let edges = buckets.flatMap { [$0.lower, $0.lower - 1, $0.lower + 1] }.filter { $0 >= 0 }
+            for size in edges + [0, 1, 50_000_000_000] {
+                XCTAssertEqual(buckets.filter { $0.contains(size) }.count, 1, "\(size) байт")
+            }
+        }
+        let videos = SizeBucket.buckets(isVideo: true)
+        XCTAssertEqual(videos.map(\.lower), [1_000_000_000, 500_000_000, 100_000_000, 0])
+        XCTAssertTrue(videos[0].contains(1_000_000_000))
+        XCTAssertTrue(videos[1].contains(999_999_999))
+        XCTAssertEqual(SizeBucket.buckets(isVideo: false).map(\.lower), [20_000_000, 5_000_000, 2_000_000, 0])
+    }
+
+    func testKindSummaryGroupsBySize() {
+        let sizes: [Int64] = [1_500_000_000, 700_000_000, 600_000_000, 200_000_000, 30_000_000, 10_000_000]
+        let summary = MediaKindSummary(sizes: sizes, isVideo: true)
+        XCTAssertEqual(summary.count, 6)
+        XCTAssertEqual(summary.bytes, 3_040_000_000)
+        XCTAssertEqual(summary.groups.map(\.count), [1, 2, 1, 2])
+        XCTAssertEqual(summary.groups.map(\.bytes), [1_500_000_000, 1_300_000_000, 200_000_000, 40_000_000])
+        XCTAssertEqual(summary.groups.reduce(0) { $0 + $1.bytes }, summary.bytes)
+        XCTAssertEqual(summary.topBytes, summary.bytes, "Файлов меньше десяти: самые большие — это все")
+    }
+
+    func testKindSummaryTopAndEmptyGroups() {
+        // 12 фото по 3 МБ и одно на 25 МБ: группы «2–5 МБ» и «от 20 МБ», остальные пустые.
+        let sizes: [Int64] = Array(repeating: 3_000_000, count: 12) + [25_000_000]
+        let summary = MediaKindSummary(sizes: sizes, isVideo: false)
+        XCTAssertEqual(summary.topBytes, 25_000_000 + 9 * 3_000_000)
+        XCTAssertEqual(summary.filledGroups.map(\.bucket.lower), [20_000_000, 2_000_000])
+        XCTAssertEqual(MediaKindSummary(sizes: [], isVideo: false).filledGroups, [])
+    }
+
     func testAllocatedSizeCountsFilesInSubfolders() throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
         let nested = directory.appendingPathComponent("nested", isDirectory: true)

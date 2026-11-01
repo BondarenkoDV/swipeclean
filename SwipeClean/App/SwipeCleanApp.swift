@@ -1,13 +1,17 @@
 import AVFoundation
 import SwiftData
 import SwiftUI
+import UserNotifications
 
 @main
 struct SwipeCleanApp: App {
     private let container: ModelContainer
     @State private var library = PhotoLibraryService()
     @State private var store: ReviewStore
+    @State private var reminder = DailyReminder.shared
     @State private var storeIssue: StoreIssue?
+    /// Список «Не трогать» нужен везде, в том числе в полноэкранном просмотре поверх вкладок.
+    @State private var protection = ProtectedStore()
 
     /// Запуск из UI-тестов: каждый запуск начинается с чистого листа и не трогает настоящий прогресс.
     /// В Release-сборке переключателя нет: тестовые данные и поддельная почта туда не попадают.
@@ -24,9 +28,19 @@ struct SwipeCleanApp: App {
             UserDefaults.standard.removePersistentDomain(forName: domain)
         }
 
+        // Делегат ставится до первого кадра: нажатие на напоминание могло и запустить приложение.
+        UNUserNotificationCenter.current().delegate = ReminderNotificationDelegate.shared
+
         let (container, issue) = Self.makeContainer()
         self.container = container
-        _store = State(initialValue: ReviewStore(context: container.mainContext))
+        let store = ReviewStore(context: container.mainContext)
+        #if DEBUG
+        if Self.isUITesting {
+            let streak = UserDefaults.standard.integer(forKey: "seedStreak")
+            if streak > 0 { store.seedStreak(days: streak) }
+        }
+        #endif
+        _store = State(initialValue: store)
         _storeIssue = State(initialValue: issue)
     }
 
@@ -35,6 +49,8 @@ struct SwipeCleanApp: App {
             RootView()
                 .environment(library)
                 .environment(store)
+                .environment(reminder)
+                .environment(protection)
                 .alert(
                     storeIssue?.title ?? "",
                     isPresented: Binding(get: { storeIssue != nil }, set: { if !$0 { storeIssue = nil } })

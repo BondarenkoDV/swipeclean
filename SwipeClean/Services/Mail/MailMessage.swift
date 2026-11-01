@@ -15,8 +15,10 @@ struct MailMessage: Identifiable, Hashable, Sendable {
     let isSeen: Bool
     /// Рассылка или автоматическое письмо: есть List-Unsubscribe, List-Id или Precedence: bulk.
     let isBulk: Bool
+    /// Ящик, из которого письмо: у iCloud и Gmail одинаковые имена папок и пересекающиеся UID.
+    private(set) var account: MailProvider
 
-    var id: String { "\(mailbox)#\(uid)" }
+    var id: String { "\(account.rawValue):\(mailbox)#\(uid)" }
 
     /// Имя отправителя, а если его нет — адрес.
     var displaySender: String {
@@ -27,7 +29,7 @@ struct MailMessage: Identifiable, Hashable, Sendable {
         subject.isEmpty ? String(localized: "Без темы") : subject
     }
 
-    init(uid: UInt32, mailbox: String, senderName: String, senderAddress: String, subject: String, date: Date, size: Int64, isSeen: Bool, isBulk: Bool) {
+    init(uid: UInt32, mailbox: String, senderName: String, senderAddress: String, subject: String, date: Date, size: Int64, isSeen: Bool, isBulk: Bool, account: MailProvider = .icloud) {
         self.uid = uid
         self.mailbox = mailbox
         self.senderName = senderName
@@ -37,6 +39,14 @@ struct MailMessage: Identifiable, Hashable, Sendable {
         self.size = size
         self.isSeen = isSeen
         self.isBulk = isBulk
+        self.account = account
+    }
+
+    /// То же письмо с пометкой ящика, из которого оно пришло.
+    func tagged(_ account: MailProvider) -> MailMessage {
+        var copy = self
+        copy.account = account
+        return copy
     }
 
     /// Собирает письмо из ответа FETCH. Без UID письмо бесполезно: его не удалить.
@@ -70,7 +80,7 @@ struct MailboxSet: Sendable, Equatable {
     var all: [String] { [junk, trash, inbox].compactMap { $0 } }
 }
 
-/// Сколько места занимает почта в iCloud.
+/// Сколько места занято на сервере почты. Gmail может отдавать всё хранилище аккаунта Google, а не только почту.
 struct MailQuota: Sendable, Equatable {
     let used: Int64
     let limit: Int64
@@ -78,8 +88,8 @@ struct MailQuota: Sendable, Equatable {
     var fraction: Double { limit > 0 ? Double(used) / Double(limit) : 0 }
 }
 
-/// Категории лишних писем. Спам и удалённые стираются насовсем, остальное переезжает в «Удалённые»,
-/// откуда письмо можно вернуть в приложении Почта.
+/// Категории лишних писем. Спам и удалённые стираются насовсем, остальное переезжает в корзину ящика
+/// («Удалённые» у iCloud, «Корзина» у Gmail), откуда письмо можно вернуть.
 enum MailCategory: String, CaseIterable, Identifiable, Sendable {
     case junk
     case trash
@@ -102,7 +112,7 @@ enum MailCategory: String, CaseIterable, Identifiable, Sendable {
     var detail: LocalizedStringKey {
         switch self {
         case .junk: "Папка «Спам» целиком"
-        case .trash: "Папка «Удалённые» целиком"
+        case .trash: "Папка «Удалённые» (в Gmail — «Корзина») целиком"
         case .newsletters: "Письма с кнопкой «Отписаться» и автоматические уведомления"
         case .large: "Письма от 5 МБ: обычно с вложениями"
         case .unreadOld: "Не открыты больше 30 дней"
@@ -136,7 +146,7 @@ enum MailCategory: String, CaseIterable, Identifiable, Sendable {
 
     /// Что произойдёт с письмами при чистке.
     var actionHint: LocalizedStringKey {
-        isPermanent ? "Удалятся навсегда" : "Переедут в «Удалённые»"
+        isPermanent ? "Удалятся навсегда" : "Переедут в корзину почты"
     }
 
     /// Включено по умолчанию: то, что безопасно убирать не глядя.

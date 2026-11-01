@@ -140,6 +140,45 @@ enum LibraryFetcher {
         return missing
     }
 
+    /// Год самого старого фото или видео в медиатеке.
+    static func oldestYear(calendar: Calendar = .current) -> Int? {
+        let options = PHFetchOptions()
+        options.predicate = NSPredicate(format: "creationDate != nil")
+        options.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: true)]
+        options.fetchLimit = 1
+        guard let date = PHAsset.fetchAssets(with: options).firstObject?.creationDate else { return nil }
+        return calendar.component(.year, from: date)
+    }
+
+    /// Фото и видео, снятые в тот же день и месяц, что `day`, в прошлые годы начиная с `since`.
+    /// Ищет запросами по датам, а не перебором всей медиатеки: напоминания считают это на две недели вперёд.
+    /// Не дальше 50 лет назад, чтобы фото с испорченной датой (1970 год) не превращали это в сотни запросов.
+    static func onThisDayIDs(
+        for day: Date,
+        since oldestYear: Int,
+        excluding protection: ProtectionPolicy = .nothing,
+        calendar: Calendar = .current
+    ) -> [String] {
+        let parts = calendar.dateComponents([.year, .month, .day], from: day)
+        guard let year = parts.year, let month = parts.month, let dayOfMonth = parts.day else { return [] }
+        let first = max(oldestYear, year - 50)
+        guard first < year else { return [] }
+        var ids: [String] = []
+        for past in first..<year {
+            // 29 февраля в невисокосный год не существует: календарь перенёс бы его на 1 марта.
+            guard let start = calendar.date(from: DateComponents(year: past, month: month, day: dayOfMonth)),
+                  calendar.component(.day, from: start) == dayOfMonth,
+                  let end = calendar.date(byAdding: .day, value: 1, to: start) else { continue }
+            let options = PHFetchOptions()
+            options.predicate = NSPredicate(format: "creationDate >= %@ AND creationDate < %@", start as NSDate, end as NSDate)
+            PHAsset.fetchAssets(with: options).enumerateObjects { asset, _, _ in
+                // Защищённые фото не попадут в стопку, поэтому и в число в уведомлении их не считаем.
+                if !protection.protects(asset) { ids.append(asset.localIdentifier) }
+            }
+        }
+        return ids
+    }
+
     /// Месяцы с количеством ассетов, от новых к старым.
     static func months() -> [MonthBucket] {
         let calendar = Calendar.current

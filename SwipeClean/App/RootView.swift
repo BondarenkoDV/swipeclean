@@ -40,10 +40,14 @@ enum AppTab: Hashable {
 @Observable
 final class TabRouter {
     var tab: AppTab = .home
+    /// Подборка, которую «Разбор» откроет сам (после нажатия на напоминание «В этот день»).
+    var reviewSource: LibrarySource?
 }
 
 struct MainTabView: View {
     @Environment(ReviewStore.self) private var store
+    @Environment(DailyReminder.self) private var reminder
+    @Environment(ProtectedStore.self) private var protection
     @Environment(\.scenePhase) private var scenePhase
     @State private var fullScreen = FullScreenPresenter()
     @State private var router = TabRouter()
@@ -91,6 +95,26 @@ struct MainTabView: View {
         // системные окна (Face ID, подтверждение удаления), и папка закрывалась бы посреди работы.
         .onChange(of: scenePhase) { _, phase in
             if phase == .background { vault.lock() }
+            // День мог смениться, а разрешение на уведомления — поменяться в Настройках.
+            if phase == .active {
+                store.refreshActivity()
+                reminder.reschedule(store: store)
+            }
+        }
+        .task { reminder.reschedule(store: store) }
+        // Первая чистка за день убирает сегодняшнее напоминание, отмена — возвращает.
+        .onChange(of: store.isActiveToday) { reminder.reschedule(store: store) }
+        .onChange(of: reminder.openRequest, initial: true) { _, request in
+            guard let request else { return }
+            router.tab = .review
+            router.reviewSource = request.source
+            reminder.openRequest = nil
+        }
+        // Фото защитили, когда результаты умной чистки уже на экране: убираем его из предложенного к удалению.
+        .onChange(of: protection.policy) { _, policy in
+            analyzer.applyProtection(policy)
+            // Число «В этот день» в напоминании не должно включать защищённые фото.
+            reminder.reschedule(store: store)
         }
     }
 }

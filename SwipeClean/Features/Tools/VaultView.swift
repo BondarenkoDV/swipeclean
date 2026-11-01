@@ -68,7 +68,7 @@ struct VaultView: View {
             Button("Удалить из «Фото»", role: .destructive) {
                 let ids = pendingOriginals
                 pendingOriginals = []
-                Task { try? await LibraryEditor.deleteAssets(withIDs: ids) }
+                Task { try? await LibraryEditor.deleteAssets(withIDs: ids, sparing: .nothing) }
             }
             .accessibilityIdentifier("vault.deleteOriginals")
             Button("Оставить в «Фото»", role: .cancel) { pendingOriginals = [] }

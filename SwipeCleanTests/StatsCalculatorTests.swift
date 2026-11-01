@@ -59,4 +59,13 @@ final class StatsCalculatorTests: XCTestCase {
         XCTAssertEqual(weeks.map(\.trashed), [0, 2, 5])
         XCTAssertEqual(weeks.last?.weekStart, day("2026-10-26"))
     }
+
+    func testRecentDaysMarkActiveDaysAndToday() {
+        let marks = StatsCalculator.recentDays(
+            3, activeDays: [day("2026-10-25"), day("2026-10-27"), day("2026-10-20")], today: day("2026-10-27"), calendar: calendar
+        )
+        XCTAssertEqual(marks.map(\.day), [day("2026-10-25"), day("2026-10-26"), day("2026-10-27")])
+        XCTAssertEqual(marks.map(\.isActive), [true, false, true])
+        XCTAssertEqual(marks.map(\.isToday), [false, false, true])
+    }
 }

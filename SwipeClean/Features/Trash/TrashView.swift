@@ -6,6 +6,7 @@ struct TrashView: View {
     @Environment(ReviewStore.self) private var store
     @Environment(PhotoLibraryService.self) private var library
     @Environment(FullScreenPresenter.self) private var fullScreen
+    @Environment(ProtectedStore.self) private var protection
     @State private var entries: [TrashEntry] = []
     @State private var selection: Set<String> = []
     @State private var isSelecting = false
@@ -62,6 +63,9 @@ struct TrashView: View {
             if isVisible { reload() }
         }
         .onChange(of: library.changeCount) { _, _ in
+            if isVisible { reload() }
+        }
+        .onChange(of: protection.policy) { _, _ in
             if isVisible { reload() }
         }
     }
@@ -207,13 +211,21 @@ struct TrashView: View {
         let items = store.trashItems()
         let ids = items.map(\.localIdentifier)
         let sizes = Dictionary(items.map { ($0.localIdentifier, $0.fileSize) }, uniquingKeysWith: { first, _ in first })
+        let policy = protection.policy
         reloadTask?.cancel()
         reloadTask = Task { @MainActor in
             // Запрос к медиатеке идёт в фоне: корзина на тысячи фото не должна держать главный поток.
             let byID = await Task.detached(priority: .userInitiated) { LibraryFetcher.assetsByID(ids) }.value
             guard !Task.isCancelled else { return }
+            // Защищённое не может ждать удаления: например, фото из корзины добавили в избранное в «Фото».
+            // Оно возвращается как оставленное, а не лежит в корзине под угрозой «Удалить всё».
+            let spared = Set(byID.values.filter { policy.protects($0) }.map(\.localIdentifier))
+            if !spared.isEmpty {
+                store.restore(spared)
+            }
             entries = ids.compactMap { id in
-                byID[id].map { TrashEntry(asset: $0, fileSize: sizes[id] ?? 0) }
+                guard !spared.contains(id) else { return nil }
+                return byID[id].map { TrashEntry(asset: $0, fileSize: sizes[id] ?? 0) }
             }
             selection.formIntersection(Set(entries.map(\.id)))
             // При ограниченном доступе «не найдено» значит «не выбрано пользователем», а не «удалено»:

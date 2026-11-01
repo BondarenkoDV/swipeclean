@@ -3,7 +3,7 @@ import SwiftUI
 
 /// Сетка с выбором для размытых фото, старых скриншотов, тяжёлых видео и разделов памяти iPhone.
 /// Если известны размеры файлов, они видны справа внизу на каждой клетке, а сетку можно сортировать.
-struct SelectionGridView: View {
+struct SelectionGridView<Header: View>: View {
     let title: LocalizedStringKey
     let assets: [PHAsset]
     let analyzer: SmartCleanAnalyzer
@@ -11,9 +11,14 @@ struct SelectionGridView: View {
     var sizes: [String: Int64] = [:]
     /// Посчитать размеры самой, если их не передали (тяжёлые видео умной чистки).
     var measuresSizes = false
+    /// Какие фото только что оставлены или отправлены в корзину: экран раздела памяти пересчитывает по ним сводку.
+    var onHandled: @MainActor (Set<String>) -> Void = { _ in }
+    /// Над сеткой, листается вместе с ней.
+    let header: Header
 
     @Environment(ReviewStore.self) private var store
     @Environment(FullScreenPresenter.self) private var fullScreen
+    @Environment(ProtectedStore.self) private var protection
     @AppStorage(SettingsKeys.mediaSortOrder) private var sortOrder = MediaSortOrder.largest
     @State private var selection: Set<String> = []
     @State private var handled: Set<String> = []
@@ -23,6 +28,24 @@ struct SelectionGridView: View {
 
     private let columns = [GridItem(.adaptive(minimum: 100), spacing: 2)]
 
+    init(
+        title: LocalizedStringKey,
+        assets: [PHAsset],
+        analyzer: SmartCleanAnalyzer,
+        sizes: [String: Int64] = [:],
+        measuresSizes: Bool = false,
+        onHandled: @escaping @MainActor (Set<String>) -> Void = { _ in },
+        @ViewBuilder header: () -> Header
+    ) {
+        self.title = title
+        self.assets = assets
+        self.analyzer = analyzer
+        self.sizes = sizes
+        self.measuresSizes = measuresSizes
+        self.onHandled = onHandled
+        self.header = header()
+    }
+
     private var knownSizes: [String: Int64] {
         sizes.isEmpty ? measuredSizes : sizes
     }
@@ -31,8 +54,11 @@ struct SelectionGridView: View {
         !sizes.isEmpty || measuresSizes
     }
 
+    /// Защищённые фото здесь не показываются: их нельзя отправить в корзину. Если фото защитили
+    /// в полноэкранном просмотре прямо из сетки, оно сразу пропадает.
     private var visible: [PHAsset] {
-        (ordered ?? assets).filter { !handled.contains($0.localIdentifier) }
+        let policy = protection.policy
+        return (ordered ?? assets).filter { !handled.contains($0.localIdentifier) && !policy.protects($0) }
     }
 
     /// Выбранные среди видимых: фото, удалённые снаружи после анализа, из выбора выпадают.
@@ -44,6 +70,11 @@ struct SelectionGridView: View {
         !visible.isEmpty && selectedVisible.count == visible.count
     }
 
+    private var selectedBytes: Int64 {
+        let sizes = knownSizes
+        return selectedVisible.reduce(0) { $0 + (sizes[$1] ?? 0) }
+    }
+
     var body: some View {
         Group {
             if visible.isEmpty {
@@ -51,25 +82,18 @@ struct SelectionGridView: View {
             } else {
                 VStack(spacing: 0) {
                     ScrollView {
+                        // Заголовок раздела — секция сетки: так сетка остаётся ленивой и не грузит тысячи превью сразу.
                         LazyVGrid(columns: columns, spacing: 2) {
-                            ForEach(visible, id: \.localIdentifier) { asset in
-                                cell(for: asset)
+                            Section {
+                                ForEach(visible, id: \.localIdentifier) { asset in
+                                    cell(for: asset)
+                                }
+                            } header: {
+                                header
                             }
                         }
                     }
-                    HStack(spacing: 12) {
-                        Button("Оставить (\(selectedVisible.count))") { apply(.keep) }
-                            .buttonStyle(.bordered)
-                            .accessibilityIdentifier("selection.keep")
-                        Button("В корзину (\(selectedVisible.count))", role: .destructive) { apply(.trash) }
-                            .buttonStyle(.borderedProminent)
-                            .tint(.red)
-                            .accessibilityIdentifier("selection.trash")
-                    }
-                    .disabled(selectedVisible.isEmpty)
-                    .padding()
-                    .frame(maxWidth: .infinity)
-                    .background(.bar)
+                    actionBar
                 }
             }
         }
@@ -99,6 +123,38 @@ struct SelectionGridView: View {
         .onChange(of: sortOrder) { _, _ in reorder() }
         .onChange(of: assets.map(\.localIdentifier)) { _, _ in reorder() }
         .task { await measureSizes() }
+    }
+
+    /// Панель под сеткой: сколько весит выбранное (если размеры известны) и кнопки решения.
+    private var actionBar: some View {
+        VStack(spacing: 8) {
+            // С известными размерами видно, сколько весит выбранное: строка есть всегда, чтобы сетка не прыгала.
+            if !knownSizes.isEmpty {
+                Group {
+                    if selectedVisible.isEmpty {
+                        Text("Отметьте, что убрать")
+                    } else {
+                        Text("Выбрано: \(selectedBytes.formattedBytes)")
+                    }
+                }
+                .font(.footnote.weight(.semibold).monospacedDigit())
+                .foregroundStyle(.secondary)
+                .accessibilityIdentifier("selection.selectedBytes")
+            }
+            HStack(spacing: 12) {
+                Button("Оставить (\(selectedVisible.count))") { apply(.keep) }
+                    .buttonStyle(.bordered)
+                    .accessibilityIdentifier("selection.keep")
+                Button("В корзину (\(selectedVisible.count))", role: .destructive) { apply(.trash) }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.red)
+                    .accessibilityIdentifier("selection.trash")
+            }
+            .disabled(selectedVisible.isEmpty)
+        }
+        .padding()
+        .frame(maxWidth: .infinity)
+        .background(.bar)
     }
 
     /// Клетка сетки. Отдельная функция с типизированными значениями: одним выражением внутри `body`
@@ -171,5 +227,12 @@ struct SelectionGridView: View {
         handled.formUnion(ids)
         analyzer.removeHandled(ids)
         selection.removeAll()
+        onHandled(ids)
+    }
+}
+
+extension SelectionGridView where Header == EmptyView {
+    init(title: LocalizedStringKey, assets: [PHAsset], analyzer: SmartCleanAnalyzer, sizes: [String: Int64] = [:], measuresSizes: Bool = false) {
+        self.init(title: title, assets: assets, analyzer: analyzer, sizes: sizes, measuresSizes: measuresSizes) { EmptyView() }
     }
 }

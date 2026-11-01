@@ -62,13 +62,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Face ID opens the secret folder without a passcode."
+            "value": "Face ID opens the secret folder and hidden photos."
           }
         },
         "ru": {
           "stringUnit": {
             "state": "new",
-            "value": "Face ID открывает секретную папку без PIN-кода."
+            "value": "Face ID открывает секретную папку и скрытые фото."
           }
         }
       }

@@ -68,6 +68,9 @@ final class SmartCleanAnalyzer {
     nonisolated static let duplicateBucketLimit = 2000
     /// Сколько фото обрабатывается параллельно за один шаг первого прохода.
     nonisolated static let batchSize = 32
+    /// Сторона копии, по которой оцениваются лица в «Похожих» и «Сериях»: на превью 300 точек
+    /// лица на групповом фото слишком мелкие для точек век. Если такой копии нет без сети, берётся превью 300.
+    nonisolated static let faceThumbnailSide: CGFloat = 1024
 
     var isScanning: Bool {
         if case .scanning = state { return true }
@@ -105,6 +108,8 @@ final class SmartCleanAnalyzer {
             self.videoDuplicates = result.videoDuplicates
             self.heavyVideos = result.heavyVideos
             self.unavailable = result.unavailable
+            // Защиту могли поменять, пока шёл анализ: берём действующую на момент результата.
+            self.applyProtection(ProtectionPolicy.current)
             self.state = .finished
         }
     }
@@ -152,6 +157,20 @@ final class SmartCleanAnalyzer {
         heavyVideos.removeAll { ids.contains($0.localIdentifier) }
     }
 
+    /// Защищённые фото не предлагаются к удалению: из списков они уходят, а в группах всегда остаются.
+    /// Среди точных копий защищённая копия становится той, что остаётся. Снятая защита вернёт фото
+    /// в результаты только при следующей проверке.
+    func applyProtection(_ policy: ProtectionPolicy) {
+        guard !policy.isEmpty else { return }
+        similar = similar.compactMap { $0.protecting(policy, replacesBest: false) }
+        duplicates = duplicates.compactMap { $0.protecting(policy, replacesBest: true) }
+        bursts = bursts.compactMap { $0.protecting(policy, replacesBest: false) }
+        videoDuplicates = videoDuplicates.compactMap { $0.protecting(policy, replacesBest: true) }
+        blurry.removeAll { policy.protects($0) }
+        oldScreenshots.removeAll { policy.protects($0) }
+        heavyVideos.removeAll { policy.protects($0) }
+    }
+
     /// Убирает из результатов фото, которых больше нет в медиатеке (удалены через корзину или в «Фото»).
     func dropMissing() async {
         guard state == .finished else { return }
@@ -197,7 +216,7 @@ final class SmartCleanAnalyzer {
         let videos = fetchAssets(of: .video, in: interval)
         let total = photos.count + videos.count
 
-        result.bursts = burstGroups(in: interval)
+        let burstDrafts = burstGroups(in: interval)
         result.oldScreenshots = photos.filter {
             $0.mediaSubtypes.contains(.photoScreenshot)
                 && ($0.creationDate ?? .now) < Date(timeIntervalSinceNow: -screenshotAge)
@@ -385,12 +404,47 @@ final class SmartCleanAnalyzer {
             chainEnded: { ids in prints = prints.filter { !ids.contains($0.key) } }
         )
         if Task.isCancelled { return result }
-        result.similar = chains.compactMap { ids -> AssetGroup? in
-            let assets = ids.compactMap { photosByID[$0] }
-            guard assets.count > 1 else { return nil }
-            return AssetGroup(assets: assets, bestID: best(in: assets, metrics: metrics))
+        let similarAssets = chains.map { $0.compactMap { photosByID[$0] } }.filter { $0.count > 1 }
+
+        // Проход 3, лучший кадр в похожих и сериях: лица (открытые глаза, качество лица) и резкость.
+        // Проверяются только группы, где выбор не сделал сам пользователь: избранное и отмеченные в серии кадры
+        // остаются лучшими без проверки. Прогресс продолжается после фото и видео.
+        let faceTargets = Self.faceTargets(similar: similarAssets, bursts: burstDrafts)
+        var shots: [String: FaceQuality.Analysis] = [:]
+        shots.reserveCapacity(faceTargets.count)
+        let faceTotal = total + faceTargets.count
+        for start in stride(from: 0, to: faceTargets.count, by: batchSize) {
+            if Task.isCancelled { return result }
+            let batch = Array(faceTargets[start..<min(start + batchSize, faceTargets.count)])
+            for (id, analysis) in analyzeShots(batch) {
+                shots[id] = analysis
+            }
+            progress(total + min(start + batchSize, faceTargets.count), faceTotal)
+        }
+        func shot(_ asset: PHAsset, cameraPick: String? = nil) -> FaceQuality.Shot {
+            let id = asset.localIdentifier
+            let analysis = shots[id]
+            return FaceQuality.Shot(
+                id: id,
+                isFavorite: asset.isFavorite,
+                isCameraPick: id == cameraPick,
+                sharpness: analysis?.sharpness ?? metrics[id]?.sharpness ?? 0,
+                faces: analysis?.faces
+            )
+        }
+        result.similar = similarAssets.map { assets in
+            let best = FaceQuality.best(among: assets.map { shot($0) })
+            return AssetGroup(assets: assets, bestID: best?.id ?? assets[0].localIdentifier, reason: best?.reason)
         }
         result.similar.reverse()
+        result.bursts = burstDrafts.map { draft in
+            // Все кадры, которые пользователь сам отметил в серии, остаются; лучший — первый из них.
+            if let firstPick = draft.userPicks.first {
+                return AssetGroup(assets: draft.assets, bestID: firstPick, keepIDs: Set(draft.userPicks), reason: .chosen)
+            }
+            let best = FaceQuality.best(among: draft.assets.map { shot($0, cameraPick: draft.cameraPick) })
+            return AssetGroup(assets: draft.assets, bestID: best?.id ?? draft.assets[0].localIdentifier, reason: best?.reason)
+        }
 
         // Однотонный кадр формально нерезкий, но размытым фото его не назовёшь.
         // Портретный режим размывает фон намеренно, такие кадры тоже не предлагаем.
@@ -647,7 +701,7 @@ final class SmartCleanAnalyzer {
         for batch: [PHAsset],
         cache: MetricsCache
     ) -> [(String, MetricsCache.Entry)] {
-        let collected = MetricsBatch(capacity: batch.count)
+        let collected = ConcurrentCollector<(String, MetricsCache.Entry)>(capacity: batch.count)
         DispatchQueue.concurrentPerform(iterations: batch.count) { index in
             let asset = batch[index]
             guard let image = thumbnail(of: asset, side: photoThumbnailSide, manager: .default(), options: makeRequestOptions()) else { return }
@@ -710,7 +764,16 @@ final class SmartCleanAnalyzer {
         return clusters.filter { $0.count > 1 }.map { $0.map(\.id) }
     }
 
-    nonisolated private static func burstGroups(in interval: DateInterval?) -> [AssetGroup] {
+    /// Серия до выбора лучшего кадра.
+    struct BurstDraft {
+        let assets: [PHAsset]
+        /// Кадры, которые пользователь сам отметил в серии.
+        let userPicks: [String]
+        /// Обложка серии или кадр, который камера сочла удачным.
+        let cameraPick: String?
+    }
+
+    nonisolated private static func burstGroups(in interval: DateInterval?) -> [BurstDraft] {
         let options = PHFetchOptions()
         options.includeAllBurstAssets = true
         options.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
@@ -725,29 +788,51 @@ final class SmartCleanAnalyzer {
         }
         return order.compactMap { id in
             guard let assets = groups[id], assets.count > 1 else { return nil }
-            // Все кадры, которые пользователь сам отметил в серии, остаются; звезда у первого из них.
-            let userPicks = assets.filter { $0.burstSelectionTypes.contains(.userPick) }
-            let pick = userPicks.first
-                ?? assets.first { $0.representsBurst }
-                ?? assets.first { $0.burstSelectionTypes.contains(.autoPick) }
-                ?? assets[0]
-            let keep = Set(userPicks.map(\.localIdentifier)).union([pick.localIdentifier])
-            return AssetGroup(assets: assets, bestID: pick.localIdentifier, keepIDs: keep)
+            let camera = assets.first { $0.representsBurst } ?? assets.first { $0.burstSelectionTypes.contains(.autoPick) }
+            return BurstDraft(
+                assets: assets,
+                userPicks: assets.filter { $0.burstSelectionTypes.contains(.userPick) }.map(\.localIdentifier),
+                cameraPick: camera?.localIdentifier
+            )
         }
     }
 
-    /// Лучший кадр группы: избранное, затем самый резкий.
-    nonisolated private static func best(in assets: [PHAsset], metrics: [String: MetricsCache.Entry]) -> String {
-        if let favorite = assets.first(where: \.isFavorite) { return favorite.localIdentifier }
-        let sharpest = assets.max { (metrics[$0.localIdentifier]?.sharpness ?? 0) < (metrics[$1.localIdentifier]?.sharpness ?? 0) }
-        return (sharpest ?? assets[0]).localIdentifier
+    /// Кадры, которые нужно проверить на лица: группы без избранного и серии без отметок пользователя.
+    /// Кадр может быть и в серии (её обложка), и в цепочке похожих — проверяется один раз.
+    nonisolated static func faceTargets(similar: [[PHAsset]], bursts: [BurstDraft]) -> [PHAsset] {
+        var seen: Set<String> = []
+        var targets: [PHAsset] = []
+        let groups = similar.filter { !$0.contains(where: \.isFavorite) }
+            + bursts.filter { $0.userPicks.isEmpty && !$0.assets.contains(where: \.isFavorite) }.map(\.assets)
+        for asset in groups.joined() {
+            if seen.insert(asset.localIdentifier).inserted { targets.append(asset) }
+        }
+        return targets
+    }
+
+    /// Резкость и лица пачки кадров параллельно. Копия побольше нужна, чтобы на групповом фото были видны глаза;
+    /// если её нет без сети, проверяется превью 300 точек, а без него кадр остаётся непроверенным.
+    nonisolated private static func analyzeShots(_ batch: [PHAsset]) -> [(String, FaceQuality.Analysis)] {
+        let collected = ConcurrentCollector<(String, FaceQuality.Analysis)>(capacity: batch.count)
+        DispatchQueue.concurrentPerform(iterations: batch.count) { index in
+            let asset = batch[index]
+            let options = makeRequestOptions()
+            guard let image = thumbnail(of: asset, side: faceThumbnailSide, manager: .default(), options: options)
+                ?? thumbnail(of: asset, side: photoThumbnailSide, manager: .default(), options: options)
+            else { return }
+            let analysis = FaceQuality.Analysis(sharpness: ImageMetrics.sharpness(image), faces: FaceQuality.faces(in: image))
+            collected.append((asset.localIdentifier, analysis))
+        }
+        return collected.values
     }
 }
 
 struct AssetGroup: Identifiable {
     let assets: [PHAsset]
-    /// Кадр со звездой: лучший в группе.
+    /// Кадр с отметкой «Лучший».
     let bestID: String
+    /// Почему этот кадр лучший (подпись под группой); `nil` у дублей, где лучший — самый качественный файл.
+    let bestReason: FaceQuality.Reason?
     /// Какие кадры предлагается оставить. Обычно это только лучший, но в серии их может быть несколько,
     /// если пользователь сам отметил несколько кадров.
     let keepIDs: Set<String>
@@ -755,9 +840,10 @@ struct AssetGroup: Identifiable {
     /// иначе экран группы терял бы выбор пользователя.
     let id: String
 
-    init(assets: [PHAsset], bestID: String, keepIDs: Set<String>? = nil, id: String? = nil) {
+    init(assets: [PHAsset], bestID: String, keepIDs: Set<String>? = nil, reason: FaceQuality.Reason? = nil, id: String? = nil) {
         self.assets = assets
         self.bestID = bestID
+        self.bestReason = reason
         self.keepIDs = keepIDs ?? [bestID]
         self.id = id ?? assets.first?.localIdentifier ?? bestID
     }
@@ -770,34 +856,37 @@ struct AssetGroup: Identifiable {
         let leftIDs = Set(left.map(\.localIdentifier))
         var keep = keepIDs.intersection(leftIDs)
         var best = bestID
+        var reason = bestReason
         if !leftIDs.contains(best) {
+            // Новый лучший выбран без проверки лиц: прежнее объяснение к нему не относится.
+            reason = nil
             let replacement = left.first { keep.contains($0.localIdentifier) }
                 ?? left.first(where: \.isFavorite)
                 ?? left.max { $0.pixelWidth * $0.pixelHeight < $1.pixelWidth * $1.pixelHeight }
             best = (replacement ?? left[0]).localIdentifier
         }
         if keep.isEmpty { keep = [best] }
-        return AssetGroup(assets: left, bestID: best, keepIDs: keep, id: id)
+        return AssetGroup(assets: left, bestID: best, keepIDs: keep, reason: reason, id: id)
     }
 }
 
 /// Потокобезопасный сборщик результатов параллельного прохода.
-private final class MetricsBatch: @unchecked Sendable {
+private final class ConcurrentCollector<Value>: @unchecked Sendable {
     private let lock = NSLock()
-    private var storage: [(String, MetricsCache.Entry)]
+    private var storage: [Value]
 
     init(capacity: Int) {
         storage = []
         storage.reserveCapacity(capacity)
     }
 
-    func append(_ value: (String, MetricsCache.Entry)) {
+    func append(_ value: Value) {
         lock.lock()
         storage.append(value)
         lock.unlock()
     }
 
-    var values: [(String, MetricsCache.Entry)] {
+    var values: [Value] {
         lock.lock()
         defer { lock.unlock() }
         return storage

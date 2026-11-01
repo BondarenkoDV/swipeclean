@@ -106,6 +106,8 @@ final class ContactsCleaner {
     private(set) var isLoading = false
     private(set) var cards: [ContactCard] = []
     private(set) var duplicates: [[ContactCard]] = []
+    /// Резервные копии: делаются перед каждым объединением и удалением.
+    let backups = ContactsBackupStore()
 
     var incomplete: [ContactCard] {
         cards.filter { $0.isIncomplete && !$0.hasNoName }
@@ -149,28 +151,61 @@ final class ContactsCleaner {
         isLoading = false
     }
 
-    /// Объединяет каждую группу в её первый (самый полный) контакт.
-    func merge(_ groups: [[ContactCard]]) async throws {
+    /// Объединяет каждую группу в её первый (самый полный) контакт. Сначала сохраняет копию всех контактов групп:
+    /// если копия не сохранилась, контакты не трогаем. Возвращает копию, чтобы объединение можно было отменить.
+    @discardableResult
+    func merge(_ groups: [[ContactCard]]) async throws -> ContactsBackup? {
         let plans = groups.map { group in (keep: group[0].id, merge: group.dropFirst().map(\.id)) }
+        let targets = plans.flatMap { plan in
+            [(id: plan.keep, role: ContactsBackup.Role.kept)] + plan.merge.map { (id: $0, role: ContactsBackup.Role.removed) }
+        }
+        let backup = try await backUp(.merge, targets: targets)
         try await Task.detached(priority: .userInitiated) {
             for plan in plans {
                 try ContactsStoreWork.merge(keep: plan.keep, others: plan.merge)
             }
         }.value
         await reload()
+        return backup
     }
 
-    func delete(_ ids: Set<String>) async throws {
+    /// Удаляет контакты, сохранив их копию. Возвращает копию, чтобы удаление можно было отменить.
+    @discardableResult
+    func delete(_ ids: Set<String>) async throws -> ContactsBackup? {
         let ids = Array(ids)
+        let backup = try await backUp(.delete, targets: ids.map { (id: $0, role: ContactsBackup.Role.removed) })
         try await Task.detached(priority: .userInitiated) { try ContactsStoreWork.delete(ids) }.value
         await reload()
+        return backup
+    }
+
+    /// Возвращает контакты из копии и перечитывает книгу. Возвращает, сколько контактов вернулось.
+    @discardableResult
+    func restore(_ backup: ContactsBackup) async throws -> Int {
+        let count = try await backups.restore(backup)
+        await reload()
+        return count
+    }
+
+    /// Копия всей адресной книги по кнопке.
+    func backUpAll() async throws {
+        guard try await backups.make(.full, targets: nil) != nil else { throw ContactsBackupError.empty }
+    }
+
+    private func backUp(_ kind: ContactsBackup.Kind, targets: [(id: String, role: ContactsBackup.Role)]) async throws -> ContactsBackup? {
+        do {
+            return try await backups.make(kind, targets: targets)
+        } catch {
+            throw ContactsBackupError.notSaved(error.localizedDescription)
+        }
     }
 }
 
 /// Работа с CNContactStore. Каждый вызов создаёт своё хранилище: CNContactStore можно использовать с любого потока,
 /// но объекты контактов между задачами не передаём, только идентификаторы.
 enum ContactsStoreWork {
-    private static var mergeKeys: [CNKeyDescriptor] {
+    /// Поля, которые меняет объединение. Их же возвращает восстановление из копии.
+    static var mergeKeys: [CNKeyDescriptor] {
         [
             CNContactGivenNameKey, CNContactFamilyNameKey, CNContactMiddleNameKey, CNContactOrganizationNameKey,
             CNContactJobTitleKey, CNContactPhoneNumbersKey, CNContactEmailAddressesKey, CNContactPostalAddressesKey,

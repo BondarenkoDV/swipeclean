@@ -1,17 +1,19 @@
 import SwiftUI
 
-/// Чистка почты iCloud: спам, удалённые, рассылки, тяжёлые и старые непрочитанные письма за выбранный период —
-/// одной кнопкой. Приложение читает только заголовки: письма не открываются, ссылки не переходятся,
+/// Чистка почты iCloud и Gmail: спам, удалённые, рассылки, тяжёлые и старые непрочитанные письма за выбранный
+/// период — одной кнопкой, из обоих ящиков сразу. Приложение читает только заголовки: письма не открываются, ссылки не переходятся,
 /// вложения не скачиваются, поэтому фишинговое письмо не может навредить.
 struct MailCleanView: View {
     /// Общий на всё приложение (задаётся в MainTabView): проверка не обрывается при уходе с экрана,
     /// а найденное не ищется заново при каждом открытии.
     @Environment(MailCleaner.self) private var cleaner
     @AppStorage(SettingsKeys.mailPeriod) private var period = SmartCleanPeriod.all
-    @State private var isConnecting = false
+    /// Ящик, который подключается в открытом окне.
+    @State private var connecting: MailProvider?
     @State private var isPickingPeriod = false
     @State private var confirmClean = false
-    @State private var confirmSignOut = false
+    /// Ящик, который пользователь собрался отключить.
+    @State private var disconnecting: MailProvider?
 
     private var interval: DateInterval? {
         period.interval()
@@ -32,16 +34,22 @@ struct MailCleanView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .screenBackground()
-        .navigationTitle("Почта iCloud")
+        .navigationTitle("Почта")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             if cleaner.isConnected {
                 ToolbarItem(placement: .topBarTrailing) {
                     Menu {
-                        Button("Отключить почту", systemImage: "rectangle.portrait.and.arrow.right", role: .destructive) {
-                            confirmSignOut = true
+                        ForEach(cleaner.availableProviders) { provider in
+                            Button("Подключить \(provider.title)", systemImage: "plus") { connecting = provider }
+                                .accessibilityIdentifier("mail.menuAdd.\(provider.rawValue)")
                         }
-                        .accessibilityIdentifier("mail.disconnect")
+                        ForEach(cleaner.accounts) { account in
+                            Button("Отключить \(account.provider.title)", systemImage: "rectangle.portrait.and.arrow.right", role: .destructive) {
+                                disconnecting = account.provider
+                            }
+                            .accessibilityIdentifier("mail.disconnect.\(account.provider.rawValue)")
+                        }
                     } label: {
                         Image(systemName: "ellipsis.circle")
                     }
@@ -52,12 +60,11 @@ struct MailCleanView: View {
         }
         // Проверка за тот же период уже идёт или закончена (например, из умной чистки): заново не начинаем.
         .task { cleaner.scanIfNeeded(interval: interval) }
-        .onChange(of: cleaner.isConnected) { _, connected in
-            if connected { cleaner.scanIfNeeded(interval: interval) }
-        }
+        // Подключили или отключили ящик: найденное сброшено, проверяем оставшиеся ящики заново.
+        .onChange(of: cleaner.accounts) { cleaner.scanIfNeeded(interval: interval) }
         .onChange(of: period) { cleaner.scanIfNeeded(interval: interval) }
-        .sheet(isPresented: $isConnecting) {
-            MailConnectView(cleaner: cleaner)
+        .sheet(item: $connecting) { provider in
+            MailConnectView(provider: provider, cleaner: cleaner)
         }
         .sheet(isPresented: $isPickingPeriod) {
             PeriodPickerView(selection: $period)
@@ -71,11 +78,16 @@ struct MailCleanView: View {
         } message: {
             Text(confirmMessage)
         }
-        .confirmationDialog("Отключить почту?", isPresented: $confirmSignOut, titleVisibility: .visible) {
-            Button("Отключить", role: .destructive) { cleaner.signOut() }
+        .confirmationDialog(
+            "Отключить \(disconnecting?.title ?? "")?",
+            isPresented: Binding(get: { disconnecting != nil }, set: { if !$0 { disconnecting = nil } }),
+            titleVisibility: .visible,
+            presenting: disconnecting
+        ) { provider in
+            Button("Отключить", role: .destructive) { cleaner.signOut(provider) }
                 .accessibilityIdentifier("mail.confirmDisconnect")
-        } message: {
-            Text("Пароль приложения удалится из связки ключей iPhone. Отозвать его совсем можно на account.apple.com.")
+        } message: { provider in
+            Text("Пароль приложения удалится из связки ключей iPhone. Отозвать его совсем можно на \(provider.accountSite).")
         }
         .alert("Не получилось", isPresented: Binding(get: { cleaner.errorMessage != nil }, set: { if !$0 { cleaner.errorMessage = nil } })) {
             Button("OK") { cleaner.errorMessage = nil }
@@ -93,7 +105,7 @@ struct MailCleanView: View {
         }
         if movable > 0 {
             let movableBytes = cleaner.selectedBytes - cleaner.selectedPermanentBytes
-            parts.append(String(localized: "В «Удалённые» (\(movableBytes.formattedBytes)), откуда можно вернуть в Почте: \(movable). Место освободится после очистки «Удалённых»."))
+            parts.append(String(localized: "В корзину почты (\(movableBytes.formattedBytes)), откуда их можно вернуть: \(movable). Место освободится после очистки корзины."))
         }
         return parts.joined(separator: " ")
     }
@@ -109,7 +121,7 @@ struct MailCleanView: View {
                         .frame(width: 54, height: 54)
                         .background(.white.opacity(0.22), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                     VStack(alignment: .leading, spacing: 3) {
-                        Text("Почта iCloud")
+                        Text("Почта")
                             .font(.headline)
                         Text("Спам, рассылки и старые письма — одной кнопкой")
                             .font(.subheadline)
@@ -119,47 +131,41 @@ struct MailCleanView: View {
                 }
                 .gradientCard(Tone.blue.gradient)
 
-                // Три шага: пароль приложения создаётся у Apple один раз и дальше лежит в связке ключей.
-                VStack(alignment: .leading, spacing: 16) {
-                    introRow(symbol: "key.fill", tone: .green, title: "1. Создайте пароль приложения",
-                             text: "Кнопка ниже откроет account.apple.com: «Вход и безопасность» → «Пароли приложений» → «+». Это не пароль Apple ID: он работает только для почты и отзывается в любой момент.")
-                    introRow(symbol: "doc.on.doc.fill", tone: .indigo, title: "2. Скопируйте его",
-                             text: "Apple покажет пароль вида xxxx-xxxx-xxxx-xxxx. Нажмите на него и выберите «Скопировать».")
-                    introRow(symbol: "checkmark.shield.fill", tone: .blue, title: "3. Вставьте его здесь один раз",
-                             text: "Пароль хранится в связке ключей iPhone и уходит только на imap.mail.me.com. Письма не открываются: приложение видит лишь отправителя, тему, дату и размер.")
-                }
-                .card()
-
-                if let url = MailConnectView.appPasswordsURL {
-                    Link(destination: url) {
-                        Label("Создать пароль приложения", systemImage: "safari")
-                            .font(.headline)
-                            .frame(maxWidth: .infinity, minHeight: 50)
-                    }
-                    .buttonStyle(.bordered)
-                    .buttonBorderShape(.roundedRectangle(radius: 16))
-                    .tint(Tone.blue.color)
-                    .accessibilityIdentifier("mail.createPassword")
+                // Каждый ящик подключается паролем приложения: пошаговая подсказка — в окне подключения.
+                ForEach(MailProvider.allCases) { provider in
+                    providerCard(provider)
                 }
 
-                Button("Подключить iCloud Mail") { isConnecting = true }
-                    .buttonStyle(PrimaryButtonStyle(gradient: Tone.blue.gradient))
-                    .accessibilityIdentifier("mail.connect")
+                safetyNote
             }
             .padding(16)
         }
     }
 
-    private func introRow(symbol: String, tone: Tone, title: LocalizedStringKey, text: LocalizedStringKey) -> some View {
-        HStack(alignment: .top, spacing: 12) {
-            ToneIcon(symbol: symbol, tone: tone, size: 36)
-            VStack(alignment: .leading, spacing: 3) {
-                Text(title)
-                    .font(.subheadline.weight(.semibold))
-                Text(text)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+    private func providerCard(_ provider: MailProvider) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 12) {
+                ToneIcon(symbol: provider.symbol, tone: provider.tone, size: 44)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(verbatim: provider.title)
+                        .font(.headline)
+                    Text(providerHint(provider))
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 0)
             }
+            Button("Подключить \(provider.title)") { connecting = provider }
+                .buttonStyle(PrimaryButtonStyle(gradient: provider.tone.gradient))
+                .accessibilityIdentifier(provider == .icloud ? "mail.connect" : "mail.connect.\(provider.rawValue)")
+        }
+        .card()
+    }
+
+    private func providerHint(_ provider: MailProvider) -> LocalizedStringKey {
+        switch provider {
+        case .icloud: "Пароль приложения с account.apple.com, создаётся за минуту"
+        case .gmail: "Пароль приложения с myaccount.google.com, нужна двухэтапная аутентификация"
         }
     }
 
@@ -169,11 +175,19 @@ struct MailCleanView: View {
         VStack(spacing: 0) {
             ScrollView {
                 VStack(spacing: 16) {
-                    accountCard
+                    ForEach(cleaner.accounts) { account in
+                        accountCard(account)
+                    }
+                    ForEach(cleaner.availableProviders) { provider in
+                        addAccountRow(provider)
+                    }
                     periodRow
                     scanCard
                     if cleaner.state == .finished || cleaner.hasFindings {
                         categoryCards
+                    }
+                    if !cleaner.senders.isEmpty {
+                        sendersCard
                     }
                     safetyNote
                 }
@@ -191,33 +205,60 @@ struct MailCleanView: View {
         .disabled(isCleaning)
     }
 
-    private var accountCard: some View {
+    private func accountCard(_ account: MailAccount) -> some View {
         HStack(spacing: 14) {
-            Image(systemName: "envelope.fill")
+            Image(systemName: account.provider.symbol)
                 .font(.system(size: 26, weight: .semibold))
                 .frame(width: 54, height: 54)
                 .background(.white.opacity(0.22), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
             VStack(alignment: .leading, spacing: 5) {
-                Text(verbatim: cleaner.email ?? "")
+                Text(verbatim: account.email)
                     .font(.headline)
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
-                if let quota = cleaner.quota {
-                    Text("Почта занимает \(quota.used.formattedBytes) из \(quota.limit.formattedBytes)")
+                if let quota = cleaner.quota(for: account.provider) {
+                    Text("\(account.provider.title): занято \(quota.used.formattedBytes) из \(quota.limit.formattedBytes)")
                         .font(.subheadline)
                         .opacity(0.9)
                     GradientBar(value: quota.fraction, gradient: LinearGradient(colors: [.white, .white.opacity(0.75)], startPoint: .leading, endPoint: .trailing), height: 6)
                 } else {
-                    Text("iCloud Mail подключена")
+                    Text("\(account.provider.title) подключена")
                         .font(.subheadline)
                         .opacity(0.9)
                 }
             }
             Spacer(minLength: 0)
         }
-        .gradientCard(Tone.blue.gradient)
+        .gradientCard(account.provider.tone.gradient)
         .accessibilityElement(children: .combine)
-        .accessibilityIdentifier("mail.account")
+        .accessibilityIdentifier("mail.account.\(account.provider.rawValue)")
+    }
+
+    /// Второй ящик можно добавить, не отключая первый: чистка пройдёт по обоим.
+    private func addAccountRow(_ provider: MailProvider) -> some View {
+        Button {
+            connecting = provider
+        } label: {
+            HStack(spacing: 12) {
+                ToneIcon(symbol: "plus", tone: provider.tone, size: 36)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Добавить \(provider.title)")
+                        .font(.headline)
+                        .foregroundStyle(.primary)
+                    Text("Чистить оба ящика одной кнопкой")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.tertiary)
+            }
+            .card(padding: 14)
+        }
+        .buttonStyle(.plain)
+        .disabled(cleaner.isBusy)
+        .accessibilityIdentifier("mail.add.\(provider.rawValue)")
     }
 
     private var periodRow: some View {
@@ -257,7 +298,7 @@ struct MailCleanView: View {
             VStack(alignment: .leading, spacing: 14) {
                 HStack(spacing: 12) {
                     ToneIcon(symbol: "sparkle.magnifyingglass", tone: .blue, size: 44)
-                    Text("Проверю папки «Спам», «Удалённые» и «Входящие» за выбранный период и разложу лишнее по категориям.")
+                    Text("Проверю спам, корзину и «Входящие» за выбранный период и разложу лишнее по категориям.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
@@ -267,7 +308,7 @@ struct MailCleanView: View {
             }
             .card()
         case .connecting:
-            ProgressView("Подключаюсь к iCloud…")
+            ProgressView("Подключаюсь к почте…")
                 .frame(maxWidth: .infinity)
                 .card()
         case let .scanning(done, total):
@@ -281,7 +322,7 @@ struct MailCleanView: View {
                         .font(.subheadline)
                 }
                 GradientBar(value: total == 0 ? 0 : Double(done) / Double(total), gradient: Tone.blue.gradient)
-                Text(total == 0 ? "Подключаюсь к iCloud…" as LocalizedStringKey : "Проверено \(done) из \(total)")
+                Text(total == 0 ? "Подключаюсь к почте…" as LocalizedStringKey : "Проверено \(done) из \(total)")
                     .font(.caption.monospacedDigit())
                     .foregroundStyle(.secondary)
             }
@@ -385,6 +426,51 @@ struct MailCleanView: View {
         .opacity(isOn ? 1 : 0.7)
     }
 
+    /// Все письма из «Входящих», собранные по отправителям: самые частые видны сразу.
+    private var sendersCard: some View {
+        NavigationLink {
+            MailSendersView(cleaner: cleaner)
+        } label: {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 12) {
+                    ToneIcon(symbol: "person.2.fill", tone: .violet, size: 42)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("По отправителям")
+                            .font(.headline)
+                            .foregroundStyle(.primary)
+                        Text("Отправителей: \(cleaner.senders.count) · писем: \(cleaner.inbox.count)")
+                            .font(.subheadline.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                        Text("Всё от ненужного отправителя — разом")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(Tone.violet.color)
+                    }
+                    Spacer(minLength: 0)
+                    Image(systemName: "chevron.right")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(.tertiary)
+                }
+                ForEach(cleaner.senders.prefix(3)) { sender in
+                    HStack(spacing: 10) {
+                        MailSenderAvatar(sender: sender, size: 26)
+                        Text(verbatim: sender.displayName)
+                            .font(.footnote)
+                            .foregroundStyle(.primary)
+                            .lineLimit(1)
+                        Spacer(minLength: 8)
+                        Text(verbatim: "\(sender.count) · \(sender.size.formattedBytes)")
+                            .font(.footnote.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .card(padding: 14)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("mail.senders")
+    }
+
     /// «Писем: 5 · 1,2 МБ», а если часть снята с чистки в списке — «Писем: 5, к чистке: 3 · 800 КБ».
     private func countText(total: Int, active: Int, bytes: Int64) -> LocalizedStringKey {
         if active == total {
@@ -405,8 +491,7 @@ struct MailCleanView: View {
     }
 }
 
-/// Список писем одной категории. Текст показывается как есть, без ссылок и без открытия письма:
-/// нажатие только снимает письмо с чистки или возвращает его.
+/// Список писем одной категории. Нажатие на письмо только снимает его с чистки или возвращает (см. MailMessageRow).
 struct MailMessagesView: View {
     let category: MailCategory
     let cleaner: MailCleaner
@@ -438,7 +523,7 @@ struct MailMessagesView: View {
                 } else {
                     LazyVStack(spacing: 0) {
                         ForEach(messages) { message in
-                            row(message)
+                            MailMessageRow(message: message, cleaner: cleaner, tone: category.tone)
                             if message.id != messages.last?.id {
                                 Divider().padding(.leading, 48)
                             }
@@ -463,54 +548,14 @@ struct MailMessagesView: View {
             }
         }
     }
-
-    private func row(_ message: MailMessage) -> some View {
-        let isIncluded = cleaner.isIncluded(message)
-        return Button {
-            cleaner.toggle(message)
-        } label: {
-            HStack(alignment: .top, spacing: 12) {
-                Image(systemName: isIncluded ? "checkmark.circle.fill" : "circle")
-                    .font(.title3)
-                    .foregroundStyle(isIncluded ? category.tone.color : Color(.tertiaryLabel))
-                    .padding(.top, 1)
-                VStack(alignment: .leading, spacing: 2) {
-                    HStack(alignment: .firstTextBaseline) {
-                        Text(verbatim: message.displaySender)
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(.primary)
-                            .lineLimit(1)
-                        Spacer(minLength: 8)
-                        Text(verbatim: message.size.formattedBytes)
-                            .font(.caption.monospacedDigit())
-                            .foregroundStyle(.secondary)
-                    }
-                    Text(verbatim: message.displaySubject)
-                        .font(.footnote)
-                        .foregroundStyle(.primary)
-                        .lineLimit(2)
-                        .multilineTextAlignment(.leading)
-                    Text(verbatim: "\(message.senderAddress) · \(message.date.formatted(date: .abbreviated, time: .omitted))")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
-            }
-            .padding(.vertical, 9)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityAddTraits(isIncluded ? .isSelected : [])
-        .accessibilityIdentifier("mail.message")
-    }
 }
 
 extension MailCleaner.Report {
-    /// «Удалено писем: 6 · освобождено 1,2 МБ» или, если всё ушло в «Удалённые», «В «Удалённые»: 6 писем · 1,2 МБ».
+    /// «Удалено писем: 6 · освобождено 1,2 МБ» или, если всё ушло в корзину, «В корзину перенесено писем: 6 · 1,2 МБ».
     var summary: LocalizedStringKey {
         if freed > 0 {
             return "Удалено писем: \(count) · освобождено \(freed.formattedBytes)"
         }
-        return "В «Удалённые»: \(count) писем · \(moved.formattedBytes)"
+        return "В корзину перенесено писем: \(count) · \(moved.formattedBytes)"
     }
 }

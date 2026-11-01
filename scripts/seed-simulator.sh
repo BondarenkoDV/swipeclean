@@ -12,6 +12,7 @@
 #   3 точных дубля (один файл добавлен дважды),
 #   2 почти-дубля: пересжатие JPEG с качеством 40 и уменьшение до 80 %,
 #   серия из 4 похожих кадров (небольшие кропы одного кадра),
+#   серия из 3 кадров с лицом (кропы превью шаблона из Photos) для выбора лучшего кадра по лицам,
 #   3 сильно размытых фото, 3 PNG размером со скриншот iPhone (1179×2556),
 #   2 коротких видео, одно добавлено дважды.
 # В медиатеке симулятора есть ещё несколько стоковых фото Apple.
@@ -97,6 +98,25 @@ for n in 1 2 3 4; do
   sips -z $(( h * 3 / 4 )) $(( w * 3 / 4 )) -s formatOptions 88 "$WORK/tmp/seq$n.jpg" --out "$MEDIA/seq$n.jpg" >/dev/null
 done
 
+# Серия из 3 кадров с лицом: в macOS нет обычных фото людей, но в превью шаблонов фотокниг и открыток Photos
+# есть снимки с крупным лицом. Кропы со сдвигом 0; 2,5; 5 % (чтобы не стать дублями), увеличенные вдвое,
+# чтобы лицо было крупнее. Если таких превью в системе нет, серия пропускается.
+previews="/System/Library/Templates/Data/Library/Application Support/Apple/Photos/Print Products/Previews"
+faces=("$previews"/*.pppreview/Contents/Resources/{ModernLines-Large,PictureCard-Postcard-V,Journal-Large}_*.png(N))
+face_files=()
+if (( ${#faces} > 0 )); then
+  read w h <<< "$(size "${faces[1]}")"
+  for n in 1 2 3; do
+    shift_pct=$(( (n - 1) * 25 ))   # десятые доли процента: 0; 2,5; 5 %
+    cw=$(( w * (1000 - shift_pct) / 1000 )) ch=$(( h * (1000 - shift_pct) / 1000 ))
+    sips -c $ch $cw --cropOffset $(( (h - ch) / 2 )) $(( (w - cw) / 2 )) "${faces[1]}" --out "$WORK/tmp/face$n.png" >/dev/null
+    sips -z $(( h * 2 )) $(( w * 2 )) -s format jpeg -s formatOptions 90 "$WORK/tmp/face$n.png" --out "$MEDIA/face$n.jpg" >/dev/null
+    face_files+=("$MEDIA/face$n.jpg")
+  done
+else
+  echo "Внимание: превью Photos с лицами не нашлись — серии с лицом не будет." >&2
+fi
+
 # 3 сильно размытых: уменьшение до 64 px и обратно.
 for n in 1 2 3; do
   take "$WORK/tmp/blur$n.jpg"
@@ -148,6 +168,9 @@ add dupA.jpg dupB.heic dupC.jpg
 add dupA.jpg dupB.heic dupC.jpg
 add nearQ_orig.jpg nearQ_q40.jpg nearR_orig.jpg nearR_80.jpg
 add seq1.jpg seq2.jpg seq3.jpg seq4.jpg
+if (( ${#face_files} > 0 )); then
+  add "${face_files[@]}"
+fi
 add blur1.jpg blur2.jpg blur3.jpg
 add screenshot1.png screenshot2.png screenshot3.png
 if (( ${#videos} > 0 )); then

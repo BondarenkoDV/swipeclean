@@ -8,7 +8,9 @@ struct SourceDeckView: View {
 
     @Environment(ReviewStore.self) private var store
     @Environment(PhotoLibraryService.self) private var library
+    @Environment(ProtectedStore.self) private var protection
     @Environment(\.modelContext) private var context
+    @AppStorage(SettingsKeys.hapticsEnabled) private var hapticsEnabled = true
     @State private var assets: [PHAsset]?
     /// В подборке вообще нет фото (а не всё уже разобрано).
     @State private var isSourceEmpty = false
@@ -18,6 +20,9 @@ struct SourceDeckView: View {
     /// могли выполниться в обратном порядке, и фото осталось бы в избранном.
     @State private var lastEdit: Task<Void, Never>?
     @State private var missingAlbumTitle: String?
+    /// Похвала за первую чистку дня: сколько дней подряд теперь в серии.
+    @State private var streakToast: Int?
+    @State private var streakToastTask: Task<Void, Never>?
 
     var body: some View {
         Group {
@@ -48,6 +53,14 @@ struct SourceDeckView: View {
         }
         .navigationTitle(source.title)
         .navigationBarTitleDisplayMode(.inline)
+        .overlay(alignment: .top) {
+            if let streakToast {
+                StreakToast(days: streakToast)
+                    .padding(.top, 52)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
+        .sensoryFeedback(.success, trigger: streakToast) { _, new in hapticsEnabled && new != nil }
         .task { await load() }
         .task { await PinnedAlbum.sync(in: context, removeMissing: !library.isLimited) }
         .alert(
@@ -63,7 +76,9 @@ struct SourceDeckView: View {
     private func apply(_ action: SwipeDeckViewModel.Action) {
         let id = action.asset.localIdentifier
         previousDecisions[id] = store.item(for: id)?.decision
+        let cleanedBefore = store.isActiveToday
         store.record(action.asset, decision: action.decision)
+        if !cleanedBefore, store.isActiveToday { celebrateStreak() }
         enqueueEdit {
             if action.decision == .favorite {
                 try? await LibraryEditor.setFavorite(action.asset, true)
@@ -93,6 +108,17 @@ struct SourceDeckView: View {
         }
     }
 
+    private func celebrateStreak() {
+        let days = store.streak().current
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) { streakToast = days }
+        streakToastTask?.cancel()
+        streakToastTask = Task {
+            try? await Task.sleep(for: .seconds(2.5))
+            guard !Task.isCancelled else { return }
+            withAnimation(.easeOut(duration: 0.3)) { streakToast = nil }
+        }
+    }
+
     private func enqueueEdit(_ edit: @escaping @MainActor () async -> Void) {
         let previous = lastEdit
         lastEdit = Task {
@@ -110,13 +136,16 @@ struct SourceDeckView: View {
         guard assets == nil else { return }
         let source = source
         let reviewed = store.reviewedIDs
+        // Защищённые фото («Не трогать» и избранное, если включено) в разбор не попадают.
+        let policy = protection.policy
         if source == .later {
             let ids = store.laterIDs()
-            assets = await Task.detached { LibraryFetcher.fetch(ids: ids) }.value
+            let later = await Task.detached { LibraryFetcher.fetch(ids: ids) }.value
+            assets = later.filter { !policy.protects($0) }
             return
         }
         let all = await Task.detached(priority: .userInitiated) { LibraryFetcher.fetch(source) }.value
         isSourceEmpty = all.isEmpty
-        assets = all.filter { !reviewed.contains($0.localIdentifier) }
+        assets = all.filter { !reviewed.contains($0.localIdentifier) && !policy.protects($0) }
     }
 }

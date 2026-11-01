@@ -34,7 +34,7 @@ struct OnboardingView: View {
             symbol: "square.grid.2x2.fill",
             tone: .green,
             title: String(localized: "Ещё больше места"),
-            text: String(localized: "Сжатие фото и видео, секретная папка с PIN-кодом, чистка контактов, календаря и почты iCloud от спама.")
+            text: String(localized: "Сжатие фото и видео, секретная папка с PIN-кодом, чистка контактов, календаря и почты iCloud и Gmail от спама.")
         ),
     ]
 

@@ -38,4 +38,7 @@ final class DailyStat {
         self.trashed = 0
         self.bytesFreed = 0
     }
+
+    /// День идёт в серию, если в нём разобрано или удалено хотя бы одно фото.
+    var isActive: Bool { reviewed > 0 || trashed > 0 }
 }

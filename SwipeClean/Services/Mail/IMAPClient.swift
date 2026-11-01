@@ -22,25 +22,36 @@ enum MailError: LocalizedError, Equatable {
     }
 
     var errorDescription: String? {
+        message(for: .icloud)
+    }
+
+    /// Текст ошибки с именем сервиса, к которому шло подключение.
+    func message(for provider: MailProvider) -> String {
+        let server = provider.serverName
         switch self {
         case .connectionFailed:
-            String(localized: "Не удалось подключиться к iCloud. Проверьте интернет и попробуйте ещё раз.")
+            return String(localized: "Не удалось подключиться к \(server). Проверьте интернет и попробуйте ещё раз.")
         case .timeout:
-            String(localized: "iCloud слишком долго не отвечает. Попробуйте ещё раз.")
+            return String(localized: "\(server) слишком долго не отвечает. Попробуйте ещё раз.")
         case .authenticationFailed:
-            String(localized: "iCloud не принял адрес или пароль. Нужен пароль приложения с account.apple.com, а не пароль Apple ID.")
+            switch provider {
+            case .icloud:
+                return String(localized: "iCloud не принял адрес или пароль. Нужен пароль приложения с account.apple.com, а не пароль Apple ID.")
+            case .gmail:
+                return String(localized: "Gmail не принял адрес или пароль. Нужен пароль приложения с myaccount.google.com/apppasswords, а не пароль от аккаунта Google; создать его можно только с включённой двухэтапной аутентификацией. В рабочем или учебном аккаунте IMAP и пароли приложений должен разрешить администратор.")
+            }
         case let .serverRefused(text):
-            String(localized: "iCloud отклонил запрос: \(text)")
+            return String(localized: "\(server) отклонил запрос: \(text)")
         case .disconnected:
-            String(localized: "Соединение с iCloud прервалось.")
+            return String(localized: "Соединение с \(server) прервалось.")
         case .trashMissing:
-            String(localized: "В ящике нет папки «Удалённые», некуда переносить письма.")
+            return String(localized: "В ящике нет корзины, некуда переносить письма.")
         case .unsafeErase:
-            String(localized: "Сервер не умеет стирать письма выборочно (нет UIDPLUS). Ничего не удалено.")
+            return String(localized: "Сервер не умеет стирать письма выборочно (нет UIDPLUS). Ничего не удалено.")
         case .mailboxChanged:
-            String(localized: "Папка на сервере изменилась с момента проверки, письма не тронуты. Проверьте почту заново.")
+            return String(localized: "Папка на сервере изменилась с момента проверки, письма не тронуты. Проверьте почту заново.")
         case .invalidName:
-            String(localized: "Адрес, пароль или имя папки содержат недопустимые символы.")
+            return String(localized: "Адрес, пароль или имя папки содержат недопустимые символы.")
         }
     }
 }
@@ -61,12 +72,11 @@ protocol MailSession: Actor {
     func erase(_ uids: [UInt32], in mailbox: String) async throws
 }
 
-/// IMAP-клиент для iCloud Mail поверх Network.framework. Только TLS, только imap.mail.me.com.
-/// Запрашивает у сервера лишь заголовки (BODY.PEEK[HEADER.FIELDS ...]): тело письма, картинки,
-/// ссылки и вложения не загружаются, а письмо не помечается прочитанным.
+/// IMAP-клиент для iCloud Mail и Gmail поверх Network.framework. Только TLS и только сервер выбранного сервиса
+/// (imap.mail.me.com или imap.gmail.com). Запрашивает у сервера лишь заголовки (BODY.PEEK[HEADER.FIELDS ...]):
+/// тело письма, картинки, ссылки и вложения не загружаются, а письмо не помечается прочитанным.
 actor IMAPClient: MailSession {
-    static let host = "imap.mail.me.com"
-    static let port: UInt16 = 993
+    let provider: MailProvider
     private static let connectTimeout: Double = 20
     private static let commandTimeout: Double = 90
     /// Сколько UID уходит в одну команду: длинные множества серверы режут.
@@ -84,6 +94,10 @@ actor IMAPClient: MailSession {
     private var selected: String?
     private var validity: [String: UInt32] = [:]
 
+    init(provider: MailProvider = .icloud) {
+        self.provider = provider
+    }
+
     // MARK: - Подключение
 
     func connect(email: String, password: String) async throws {
@@ -91,8 +105,8 @@ actor IMAPClient: MailSession {
         teardown()
         let tls = NWProtocolTLS.Options()
         sec_protocol_options_set_min_tls_protocol_version(tls.securityProtocolOptions, .TLSv12)
-        guard let port = NWEndpoint.Port(rawValue: Self.port) else { throw MailError.connectionFailed }
-        let connection = NWConnection(host: NWEndpoint.Host(Self.host), port: port, using: NWParameters(tls: tls))
+        guard let port = NWEndpoint.Port(rawValue: provider.port) else { throw MailError.connectionFailed }
+        let connection = NWConnection(host: NWEndpoint.Host(provider.host), port: port, using: NWParameters(tls: tls))
         self.connection = connection
         do {
             try await timed(Self.connectTimeout) {
@@ -107,9 +121,8 @@ actor IMAPClient: MailSession {
             throw MailError.connectionFailed
         }
 
-        // Apple советует имя без домена, но для многих ящиков работает только полный адрес: пробуем оба.
         var authenticated = false
-        for login in Self.logins(for: email) {
+        for login in provider.logins(for: email) {
             do {
                 _ = try await command("LOGIN \(IMAPParser.quoted(login)) \(IMAPParser.quoted(password))")
                 authenticated = true
@@ -138,28 +151,32 @@ actor IMAPClient: MailSession {
         teardown()
     }
 
-    static func logins(for email: String) -> [String] {
-        let trimmed = email.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let at = trimmed.firstIndex(of: "@") else { return [trimmed] }
-        return [trimmed, String(trimmed[..<at])]
-    }
-
     // MARK: - Папки и письма
 
     func mailboxes() async throws -> MailboxSet {
         let response = try await command("LIST \"\" \"*\"")
+        return Self.mailboxSet(from: response.untagged)
+    }
+
+    /// Спам и корзина из ответа LIST: по атрибутам SPECIAL-USE (\\Junk, \\Trash), а без них — по именам,
+    /// которые используют iCloud, Gmail и другие серверы. Gmail в Великобритании и Германии называется
+    /// Google Mail, а корзина в британском английском — Bin.
+    static func mailboxSet(from untagged: [[IMAPToken]]) -> MailboxSet {
         var boxes = MailboxSet()
         var names: [String] = []
-        for tokens in response.untagged where tokens.count >= 5 && tokens[1].text?.uppercased() == "LIST" {
+        for tokens in untagged where tokens.count >= 5 && tokens[1].text?.uppercased() == "LIST" {
             guard case let .list(attributes) = tokens[2], let name = tokens[4].text, IMAPParser.isSafeQuoted(name) else { continue }
             let flags = Set(attributes.compactMap(\.text).map { $0.uppercased() })
-            if flags.contains("\\JUNK") { boxes.junk = name }
-            if flags.contains("\\TRASH") { boxes.trash = name }
+            // \\Noselect — только узел дерева (например, «[Gmail]»), письма в нём не лежат.
+            guard !flags.contains("\\NOSELECT"), !flags.contains("\\NONEXISTENT") else { continue }
+            if flags.contains("\\JUNK"), boxes.junk == nil { boxes.junk = name }
+            if flags.contains("\\TRASH"), boxes.trash == nil { boxes.trash = name }
             names.append(name)
         }
-        // Без атрибутов SPECIAL-USE папки узнаём по именам, которые используют iCloud и другие серверы.
-        boxes.junk = boxes.junk ?? names.first { ["JUNK", "SPAM", "JUNK E-MAIL", "BULK MAIL"].contains($0.uppercased()) }
-        boxes.trash = boxes.trash ?? names.first { ["DELETED MESSAGES", "TRASH", "DELETED ITEMS", "BIN"].contains($0.uppercased()) }
+        let junkNames = ["JUNK", "SPAM", "JUNK E-MAIL", "BULK MAIL", "[GMAIL]/SPAM", "[GOOGLE MAIL]/SPAM"]
+        let trashNames = ["DELETED MESSAGES", "TRASH", "DELETED ITEMS", "BIN", "[GMAIL]/TRASH", "[GMAIL]/BIN", "[GOOGLE MAIL]/TRASH", "[GOOGLE MAIL]/BIN"]
+        boxes.junk = boxes.junk ?? names.first { junkNames.contains($0.uppercased()) }
+        boxes.trash = boxes.trash ?? names.first { trashNames.contains($0.uppercased()) }
         return boxes
     }
 

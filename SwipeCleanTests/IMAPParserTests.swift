@@ -67,7 +67,7 @@ final class IMAPParserTests: XCTestCase {
         XCTAssertEqual(IMAPParser.literalSize(announcedBy: Array("* 1 FETCH (BODY[] {42}\r\n".utf8)), 42)
         XCTAssertNil(IMAPParser.literalSize(announcedBy: Array("* OK done\r\n".utf8)))
         XCTAssertEqual(IMAPParser.quoted("Deleted \"Msgs\""), "\"Deleted \\\"Msgs\\\"\"")
-        XCTAssertEqual(IMAPClient.logins(for: " user@icloud.com "), ["user@icloud.com", "user"])
+        XCTAssertEqual(MailProvider.icloud.logins(for: " user@icloud.com "), ["user@icloud.com", "user"])
     }
 
     func testUIDValidityFromSelectResponse() {

@@ -16,8 +16,13 @@ enum SettingsKeys {
     static let vaultLockedUntil = "vaultLockedUntil"
     static let eventAge = "eventAge"
     static let mailAccount = "mailAccount"
+    static let gmailAccount = "gmailAccount"
     static let mailPeriod = "mailPeriod"
     static let mailCategories = "mailCategories"
+    static let mailSenderSort = "mailSenderSort"
+    static let reminderEnabled = "reminderEnabled"
+    /// Время напоминания в минутах от полуночи.
+    static let reminderMinutes = "reminderMinutes"
 }
 
 enum AppAppearance: String, CaseIterable, Identifiable {

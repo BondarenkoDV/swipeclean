@@ -35,6 +35,28 @@ enum StatsCalculator {
         return Streak(current: current, best: max(best, current))
     }
 
+    /// «4 дня» с правильным окончанием.
+    static func daysText(_ count: Int) -> String {
+        String(localized: "\(count) дн.")
+    }
+
+    struct DayMark: Equatable {
+        let day: Date
+        let isActive: Bool
+        let isToday: Bool
+    }
+
+    /// Последние `count` дней по сегодняшний включительно и были ли они в серии: кружки недели на главной.
+    static func recentDays(_ count: Int, activeDays: Set<Date>, today: Date = .now, calendar: Calendar = .current) -> [DayMark] {
+        let active = Set(activeDays.map { calendar.startOfDay(for: $0) })
+        let start = calendar.startOfDay(for: today)
+        return (0..<max(count, 0)).reversed().compactMap { offset in
+            guard let day = calendar.date(byAdding: .day, value: -offset, to: start) else { return nil }
+            let normalized = calendar.startOfDay(for: day)
+            return DayMark(day: normalized, isActive: active.contains(normalized), isToday: offset == 0)
+        }
+    }
+
     struct WeekPoint: Identifiable, Equatable {
         let weekStart: Date
         let reviewed: Int

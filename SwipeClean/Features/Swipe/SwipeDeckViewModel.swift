@@ -123,6 +123,16 @@ final class SwipeDeckViewModel {
         prefetch()
     }
 
+    /// Убирает защищённые фото из текущей и следующих карточек: их приложение не предлагает разбирать.
+    /// Уже разобранные карточки остаются на месте, чтобы отмена возвращала то же фото.
+    func dropProtected(_ policy: ProtectionPolicy) {
+        guard !policy.isEmpty else { return }
+        let upcoming = assets.dropFirst(index)
+        guard upcoming.contains(where: { policy.protects($0) }) else { return }
+        assets = Array(assets.prefix(index)) + upcoming.filter { !policy.protects($0) }
+        prefetch()
+    }
+
     /// Предзагрузка в том же размере, в котором карточка запрашивает изображение, иначе кэш не используется.
     private func prefetch() {
         let loader = AssetImageLoader.shared
